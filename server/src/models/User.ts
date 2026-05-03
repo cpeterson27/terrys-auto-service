@@ -2,7 +2,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { IUser } from '../types';
 
-interface IUserDocument extends IUser, Document {}
+interface IUserDocument extends Omit<IUser, '_id'>, Document {
+  comparePassword(password: string): Promise<boolean>;
+}
 
 const userSchema: Schema = new Schema(
   {

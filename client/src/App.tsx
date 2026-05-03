@@ -4,11 +4,14 @@ import { useAuthStore } from './store/authStore';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
 import BookingPage from './pages/BookingPage';
 import InvoicesPage from './pages/InvoicesPage';
 import ExpensesPage from './pages/ExpensesPage';
+import GalleryPage from './pages/GalleryPage';
+import MessagesPage from './pages/MessagesPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,6 +26,7 @@ function App() {
         {user && <Navbar />}
         <Routes>
           {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* Protected Routes */}
@@ -50,6 +54,22 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/gallery"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <GalleryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Customer Routes */}
           <Route
@@ -71,7 +91,7 @@ function App() {
 
           {/* Redirect */}
           <Route
-            path="/"
+            path="*"
             element={
               user ? (
                 <Navigate to={user.role === 'admin' ? '/dashboard' : '/portal'} />

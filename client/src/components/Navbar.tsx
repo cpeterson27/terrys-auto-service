@@ -33,6 +33,12 @@ const Navbar: React.FC = () => {
                 <Link to="/expenses" className="text-gray-600 hover:text-gray-900">
                   Expenses
                 </Link>
+                <Link to="/gallery" className="text-gray-600 hover:text-gray-900">
+                  Gallery
+                </Link>
+                <Link to="/messages" className="text-gray-600 hover:text-gray-900">
+                  Messages
+                </Link>
               </>
             ) : (
               <>
@@ -85,6 +91,20 @@ const Navbar: React.FC = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   Expenses
+                </Link>
+                <Link
+                  to="/gallery"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Gallery
+                </Link>
+                <Link
+                  to="/messages"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Messages
                 </Link>
               </>
             ) : (

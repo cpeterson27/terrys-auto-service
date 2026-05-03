@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IExpense } from '../types';
 
-interface IExpenseDocument extends IExpense, Document {}
+interface IExpenseDocument extends Omit<IExpense, '_id'>, Document {}
 
 const expenseSchema: Schema = new Schema(
   {

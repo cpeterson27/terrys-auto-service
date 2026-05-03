@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IBooking } from '../types';
 
-interface IBookingDocument extends IBooking, Document {}
+interface IBookingDocument extends Omit<IBooking, '_id'>, Document {}
 
 const bookingSchema: Schema = new Schema(
   {

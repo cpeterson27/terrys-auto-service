@@ -3,6 +3,8 @@ import { create } from 'zustand';
 export interface AuthUser {
   userId: string;
   email: string;
+  name?: string;
+  phone?: string;
   role: 'admin' | 'customer';
 }
 

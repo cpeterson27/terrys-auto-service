@@ -76,3 +76,26 @@ export const bookingConfirmationTemplate = (
     </div>
   `;
 };
+
+export const bookingCancellationTemplate = (
+  customerName: string,
+  date: string,
+  time: string,
+  reason?: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Appointment Cancelled</h2>
+      <p>Hi ${customerName},</p>
+      <p>Your appointment with Terry's Auto Service has been cancelled.</p>
+      <p><strong>Date:</strong> ${date}</p>
+      <p><strong>Time:</strong> ${time}</p>
+      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+      <p>Please reply or contact Terry to reschedule.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};

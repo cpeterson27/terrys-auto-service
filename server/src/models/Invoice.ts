@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IInvoice } from '../types';
 
-interface IInvoiceDocument extends IInvoice, Document {}
+interface IInvoiceDocument extends Omit<IInvoice, '_id'>, Document {}
 
 const invoiceItemSchema: Schema = new Schema({
   description: String,

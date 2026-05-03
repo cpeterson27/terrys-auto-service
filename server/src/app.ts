@@ -2,6 +2,13 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import authRoutes from './routes/auth';
+import bookingRoutes from './routes/bookings';
+import contactRoutes from './routes/contact';
+import dashboardRoutes from './routes/dashboard';
+import expenseRoutes from './routes/expenses';
+import galleryRoutes from './routes/gallery';
+import invoiceRoutes from './routes/invoices';
 
 // Load environment variables
 dotenv.config();
@@ -33,11 +40,14 @@ const connectDB = async () => {
   }
 };
 
-// Routes (to be added)
-// TODO: Import and use routes
-// app.use('/api/auth', authRoutes);
-// app.use('/api/invoices', invoiceRoutes);
-// app.use('/api/bookings', bookingRoutes);
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

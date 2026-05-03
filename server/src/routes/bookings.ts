@@ -1,0 +1,177 @@
+import { Router, Response, NextFunction } from 'express';
+import { Booking } from '../models/Booking';
+import { User } from '../models/User';
+import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth';
+import {
+  bookingCancellationTemplate,
+  bookingConfirmationTemplate,
+  sendEmail,
+} from '../utils/emailService';
+
+const router = Router();
+const SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+
+router.use(authMiddleware);
+
+const getDateRange = (dateValue: string) => {
+  const date = new Date(dateValue);
+  const nextDate = new Date(date);
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+
+  return { date, nextDate };
+};
+
+router.get('/availability', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const dateValue = String(req.query.date || '');
+
+    if (!dateValue) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    const { date, nextDate } = getDateRange(dateValue);
+    const occupiedBookings = await Booking.find({
+      serviceDate: { $gte: date, $lt: nextDate },
+      status: { $in: ['pending', 'confirmed'] },
+    }).select('serviceTime status');
+
+    const occupiedTimes = new Set(occupiedBookings.map((booking) => booking.serviceTime));
+    const slots = SERVICE_TIMES.map((time) => ({
+      time,
+      available: !occupiedTimes.has(time),
+    }));
+
+    res.json({ slots });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const filter = req.user?.role === 'admin' ? {} : { customerId: req.user?.userId };
+    const bookings = await Booking.find(filter)
+      .populate('customerId', 'name email phone')
+      .sort({ serviceDate: 1, serviceTime: 1 });
+
+    res.json({ bookings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { serviceDate, serviceTime, vehicleInfo, description } = req.body;
+
+    if (!serviceDate || !serviceTime || !vehicleInfo || !description) {
+      return res.status(400).json({ error: 'Date, time, vehicle, and service description are required' });
+    }
+
+    if (!SERVICE_TIMES.includes(serviceTime)) {
+      return res.status(400).json({ error: 'Please select an available service time' });
+    }
+
+    const { date, nextDate } = getDateRange(serviceDate);
+    const existingBooking = await Booking.findOne({
+      serviceDate: { $gte: date, $lt: nextDate },
+      serviceTime,
+      status: { $in: ['pending', 'confirmed'] },
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ error: 'That appointment time is already taken. Please choose another time.' });
+    }
+
+    const booking = await Booking.create({
+      customerId: req.user?.userId,
+      serviceDate: date,
+      serviceTime,
+      vehicleInfo,
+      description,
+    });
+
+    const populatedBooking = await booking.populate('customerId', 'name email phone');
+    res.status(201).json({ booking: populatedBooking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id', adminMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { status, reason } = req.body;
+
+    if (!['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid booking status' });
+    }
+
+    const currentBooking = await Booking.findById(req.params.id);
+
+    if (!currentBooking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (status === 'confirmed') {
+      const { date, nextDate } = getDateRange(currentBooking.serviceDate.toISOString());
+      const conflictingBooking = await Booking.findOne({
+        _id: { $ne: currentBooking._id },
+        serviceDate: { $gte: date, $lt: nextDate },
+        serviceTime: currentBooking.serviceTime,
+        status: 'confirmed',
+      });
+
+      if (conflictingBooking) {
+        return res.status(409).json({ error: 'Another appointment is already confirmed for that time.' });
+      }
+    }
+
+    currentBooking.status = status;
+    await currentBooking.save();
+
+    const booking = await currentBooking.populate('customerId', 'name email phone');
+    const customer = booking.customerId as any;
+    const customerEmail = customer?.email;
+    const customerName = customer?.name || customer?.email || 'there';
+    const appointmentDate = new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(booking.serviceDate);
+
+    try {
+      if (customerEmail && status === 'confirmed') {
+        await sendEmail(
+          customerEmail,
+          'Your appointment is confirmed',
+          bookingConfirmationTemplate(customerName, appointmentDate, booking.serviceTime)
+        );
+      }
+
+      if (customerEmail && status === 'cancelled') {
+        await sendEmail(
+          customerEmail,
+          'Your appointment has been cancelled',
+          bookingCancellationTemplate(customerName, appointmentDate, booking.serviceTime, reason)
+        );
+      }
+    } catch (emailError) {
+      console.error('Appointment status updated, but notification email failed:', emailError);
+    }
+
+    res.json({ booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/customers', adminMiddleware, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customers = await User.find({ role: 'customer' }).select('name email phone').sort({ name: 1 });
+    res.json({ customers });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

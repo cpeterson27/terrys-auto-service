@@ -1,8 +1,31 @@
 import React from 'react';
-import { useAuthStore } from '../store/authStore';
+import { api, formatCurrency, formatDate } from '../lib/api';
+
+interface Invoice {
+  _id: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  status: string;
+  issuedDate: string;
+  dueDate: string;
+}
 
 const CustomerPortalPage: React.FC = () => {
-  const { user } = useAuthStore();
+  const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    const loadInvoices = async () => {
+      try {
+        const response = await api.get('/invoices');
+        setInvoices(response.data.invoices);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Could not load invoices');
+      }
+    };
+
+    loadInvoices();
+  }, []);
 
   return (
     <div className="container mx-auto py-8">
@@ -10,6 +33,12 @@ const CustomerPortalPage: React.FC = () => {
         <h1 className="text-4xl font-bold text-gray-900">My Invoices</h1>
         <p className="text-gray-600 mt-2">View and manage your invoices</p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
@@ -24,11 +53,22 @@ const CustomerPortalPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b hover:bg-gray-50">
-              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                No invoices available yet.
-              </td>
-            </tr>
+            {invoices.length === 0 ? (
+              <tr className="border-b hover:bg-gray-50">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  No invoices available yet.
+                </td>
+              </tr>
+            ) : invoices.map((invoice) => (
+              <tr key={invoice._id} className="border-b hover:bg-gray-50">
+                <td className="px-6 py-4 text-sm font-medium">{invoice.invoiceNumber}</td>
+                <td className="px-6 py-4 text-sm">{formatCurrency(invoice.totalAmount)}</td>
+                <td className="px-6 py-4 text-sm capitalize">{invoice.status}</td>
+                <td className="px-6 py-4 text-sm">{formatDate(invoice.issuedDate)}</td>
+                <td className="px-6 py-4 text-sm">{formatDate(invoice.dueDate)}</td>
+                <td className="px-6 py-4 text-right text-sm text-gray-500">Contact Terry</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

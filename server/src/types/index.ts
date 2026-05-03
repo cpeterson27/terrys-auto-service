@@ -55,6 +55,22 @@ export interface IExpense {
   updatedAt?: Date;
 }
 
+export interface IGalleryItem {
+  _id?: string;
+  title: string;
+  description?: string;
+  mediaType: 'image' | 'video';
+  mediaUrl: string;
+  thumbnailUrl?: string;
+  category?: string;
+  cloudinaryPublicId?: string;
+  featured: boolean;
+  published: boolean;
+  sortOrder: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;

@@ -7,6 +7,7 @@ const Navbar: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = React.useState(false);
+  const authenticatedUser = user?.role === 'admin' || user?.role === 'customer' ? user : null;
 
   const handleLogout = () => {
     logout();
@@ -44,9 +45,9 @@ const Navbar: React.FC = () => {
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">
-            {!user ? (
+            {!authenticatedUser ? (
               publicLinks
-            ) : user.role === 'admin' ? (
+            ) : authenticatedUser.role === 'admin' ? (
               <>
                 <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
                   Dashboard
@@ -93,11 +94,11 @@ const Navbar: React.FC = () => {
 
         {isOpen && (
           <div className="md:hidden mt-4 space-y-2">
-            {!user ? (
+            {!authenticatedUser ? (
               <div className="flex flex-col space-y-2">
                 {publicLinks}
               </div>
-            ) : user.role === 'admin' ? (
+            ) : authenticatedUser.role === 'admin' ? (
               <>
                 <Link
                   to="/dashboard"
@@ -153,7 +154,7 @@ const Navbar: React.FC = () => {
                 </Link>
               </>
             )}
-            {user && (
+            {authenticatedUser && (
               <button
                 onClick={handleLogout}
                 className="w-full text-left text-gray-600 hover:text-red-600"

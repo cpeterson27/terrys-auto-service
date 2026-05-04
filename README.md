@@ -90,7 +90,7 @@ RESEND_API_KEY=your_resend_api_key
 
 **client/.env.local**
 ```
-REACT_APP_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ### Development

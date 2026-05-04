@@ -16,11 +16,43 @@ interface AuthStore {
   setUser: (user: AuthUser) => void;
 }
 
+const isAuthUser = (value: unknown): value is AuthUser => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const user = value as Partial<AuthUser>;
+  return Boolean(user.userId && user.email && (user.role === 'admin' || user.role === 'customer'));
+};
+
+const getStoredUser = () => {
+  try {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+
+    if (isAuthUser(parsedUser)) {
+      return parsedUser;
+    }
+  } catch {
+    // Fall through and clear invalid persisted auth below.
+  }
+
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  return null;
+};
+
+const storedUser = getStoredUser();
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
-  token: localStorage.getItem('token'),
+  user: storedUser,
+  token: storedUser ? localStorage.getItem('token') : null,
 
   login: (user: AuthUser, token: string) => {
+    if (!isAuthUser(user)) {
+      return;
+    }
+
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('token', token);
     set({ user, token });

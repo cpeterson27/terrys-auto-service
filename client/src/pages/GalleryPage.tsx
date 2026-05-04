@@ -15,6 +15,35 @@ interface GalleryItem {
   sortOrder: number;
 }
 
+interface GalleryGroup {
+  category: string;
+  items: GalleryItem[];
+}
+
+const getCategory = (category?: string) => category?.trim() || 'Auto Service';
+
+const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
+  const groups = new Map<string, GalleryItem[]>();
+
+  galleryItems.forEach((item) => {
+    const category = getCategory(item.category);
+    groups.set(category, [...(groups.get(category) || []), item]);
+  });
+
+  return Array.from(groups.entries())
+    .sort(([firstCategory], [secondCategory]) => firstCategory.localeCompare(secondCategory))
+    .map(([category, groupItems]) => ({
+      category,
+      items: [...groupItems].sort((firstItem, secondItem) => {
+        if (firstItem.sortOrder !== secondItem.sortOrder) {
+          return firstItem.sortOrder - secondItem.sortOrder;
+        }
+
+        return firstItem.title.localeCompare(secondItem.title);
+      }),
+    }));
+};
+
 const GalleryPage: React.FC = () => {
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [showForm, setShowForm] = React.useState(false);
@@ -42,6 +71,8 @@ const GalleryPage: React.FC = () => {
   React.useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,10 +180,10 @@ const GalleryPage: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+            <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Repairs, Brakes, Before and After" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sort Order</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Order in Category</label>
             <input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
           </div>
           <div className="md:col-span-2">
@@ -170,36 +201,67 @@ const GalleryPage: React.FC = () => {
           No gallery media yet. Add Terry's first photo or video from this dashboard.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => (
-            <article key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="aspect-video bg-gray-100">
-                {item.mediaType === 'image' ? (
-                  <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
-                ) : (
-                  <video src={item.mediaUrl} poster={item.thumbnailUrl} controls className="w-full h-full object-cover" />
-                )}
-              </div>
-              <div className="p-5">
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                  {item.mediaType === 'image' ? <Image size={16} /> : <Video size={16} />}
-                  <span>{item.category}</span>
-                </div>
-                <h2 className="font-bold text-lg">{item.title}</h2>
-                {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <button
-                    onClick={() => updateItem(item._id, { published: !item.published })}
-                    className={item.published ? 'text-green-700 font-medium' : 'text-gray-500 font-medium'}
-                  >
-                    {item.published ? 'Published' : 'Hidden'}
-                  </button>
-                  <button onClick={() => deleteItem(item._id)} className="text-red-600 hover:text-red-700">
-                    <Trash2 size={18} />
-                  </button>
+        <div className="space-y-10">
+          {galleryGroups.map((group) => (
+            <section key={group.category}>
+              <div className="mb-4 flex items-end justify-between gap-4 border-b border-gray-200 pb-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{group.category}</h2>
+                  <p className="text-sm text-gray-600">{group.items.length} media item{group.items.length === 1 ? '' : 's'}</p>
                 </div>
               </div>
-            </article>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {group.items.map((item) => (
+                  <article key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
+                    <div className="aspect-video bg-gray-100">
+                      {item.mediaType === 'image' ? (
+                        <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={item.mediaUrl} poster={item.thumbnailUrl} controls className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                        {item.mediaType === 'image' ? <Image size={16} /> : <Video size={16} />}
+                        <span>{getCategory(item.category)}</span>
+                      </div>
+                      <h3 className="font-bold text-lg">{item.title}</h3>
+                      {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Category
+                          <input
+                            defaultValue={getCategory(item.category)}
+                            onBlur={(event) => updateItem(item._id, { category: event.target.value })}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Order
+                          <input
+                            type="number"
+                            defaultValue={item.sortOrder}
+                            onBlur={(event) => updateItem(item._id, { sortOrder: Number(event.target.value) || 0 })}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </label>
+                      </div>
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <button
+                          onClick={() => updateItem(item._id, { published: !item.published })}
+                          className={item.published ? 'text-green-700 font-medium' : 'text-gray-500 font-medium'}
+                        >
+                          {item.published ? 'Published' : 'Hidden'}
+                        </button>
+                        <button onClick={() => deleteItem(item._id)} className="text-red-600 hover:text-red-700">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

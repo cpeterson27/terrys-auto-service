@@ -38,10 +38,15 @@ const parseBoolean = (value: unknown, fallback: boolean) => {
   return value === true || value === 'true';
 };
 
+const normalizeCategory = (value: unknown) => {
+  const category = typeof value === 'string' ? value.trim() : '';
+  return category || 'Auto Service';
+};
+
 router.get('/public', async (_req, res: Response, next: NextFunction) => {
   try {
     const items = await GalleryItem.find({ published: true })
-      .sort({ sortOrder: 1, createdAt: -1 })
+      .sort({ category: 1, sortOrder: 1, createdAt: -1 })
       .limit(24);
 
     res.json({ items });
@@ -54,7 +59,7 @@ router.use(authMiddleware, adminMiddleware);
 
 router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const items = await GalleryItem.find().sort({ sortOrder: 1, createdAt: -1 });
+    const items = await GalleryItem.find().sort({ category: 1, sortOrder: 1, createdAt: -1 });
     res.json({ items });
   } catch (error) {
     next(error);
@@ -108,7 +113,7 @@ router.post('/', upload.single('media'), async (req: GalleryUploadRequest, res: 
       mediaType,
       mediaUrl,
       thumbnailUrl,
-      category,
+      category: normalizeCategory(category),
       cloudinaryPublicId,
       featured: parseBoolean(featured, true),
       published: parseBoolean(published, true),
@@ -123,7 +128,13 @@ router.post('/', upload.single('media'), async (req: GalleryUploadRequest, res: 
 
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const item = await GalleryItem.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = {
+      ...req.body,
+      ...(req.body.category !== undefined ? { category: normalizeCategory(req.body.category) } : {}),
+      ...(req.body.sortOrder !== undefined ? { sortOrder: Number(req.body.sortOrder) || 0 } : {}),
+    };
+
+    const item = await GalleryItem.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     });

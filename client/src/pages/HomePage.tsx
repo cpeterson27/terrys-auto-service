@@ -14,6 +14,29 @@ interface GalleryItem {
   category?: string;
 }
 
+interface GalleryGroup {
+  category: string;
+  items: GalleryItem[];
+}
+
+const getCategory = (category?: string) => category?.trim() || 'Auto Service';
+
+const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
+  const groups = new Map<string, GalleryItem[]>();
+
+  galleryItems.forEach((item) => {
+    const category = getCategory(item.category);
+    groups.set(category, [...(groups.get(category) || []), item]);
+  });
+
+  return Array.from(groups.entries())
+    .sort(([firstCategory], [secondCategory]) => firstCategory.localeCompare(secondCategory))
+    .map(([category, groupItems]) => ({
+      category,
+      items: groupItems,
+    }));
+};
+
 const services = [
   'Diagnostics and repair',
   'Brake service',
@@ -67,6 +90,8 @@ const HomePage: React.FC = () => {
 
     loadGallery();
   }, []);
+
+  const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
 
   const primaryAction = user?.role === 'admin'
     ? { to: '/dashboard', label: 'Go to Dashboard', icon: <LayoutDashboard size={20} /> }
@@ -164,25 +189,32 @@ const HomePage: React.FC = () => {
               Photos and videos from Terry's recent work will be added soon.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {items.map((item) => (
-                <article key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
-                  <div className="aspect-video bg-gray-100">
-                    {item.mediaType === 'image' ? (
-                      <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <video src={item.mediaUrl} poster={item.thumbnailUrl} controls className="w-full h-full object-cover" />
-                    )}
+            <div className="space-y-10">
+              {galleryGroups.map((group) => (
+                <section key={group.category}>
+                  <h3 className="text-2xl font-bold text-gray-950 mb-4">{group.category}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {group.items.map((item) => (
+                      <article key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
+                        <div className="aspect-video bg-gray-100">
+                          {item.mediaType === 'image' ? (
+                            <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <video src={item.mediaUrl} poster={item.thumbnailUrl} controls className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <div className="p-5">
+                          <div className="flex items-center gap-2 text-sm text-blue-700 font-medium mb-2">
+                            {item.mediaType === 'video' ? <PlayCircle size={16} /> : <Image size={16} />}
+                            <span>{getCategory(item.category)}</span>
+                          </div>
+                          <h4 className="font-bold text-lg text-gray-950">{item.title}</h4>
+                          {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 text-sm text-blue-700 font-medium mb-2">
-                      {item.mediaType === 'video' ? <PlayCircle size={16} /> : <Image size={16} />}
-                      <span>{item.category || 'Auto Service'}</span>
-                    </div>
-                    <h3 className="font-bold text-lg text-gray-950">{item.title}</h3>
-                    {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
-                  </div>
-                </article>
+                </section>
               ))}
             </div>
           )}

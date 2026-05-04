@@ -79,6 +79,12 @@ const GalleryPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!form.mediaFile) {
+      setError('Choose or drop a photo or video before saving');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -214,11 +220,11 @@ const GalleryPage: React.FC = () => {
               <span className="mt-1 text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
               <input
                 ref={fileInputRef}
+                name="media"
                 type="file"
                 accept="image/*,video/*"
                 onChange={(e) => setMediaFile(e.target.files?.[0])}
                 className="hidden"
-                required
               />
             </div>
           </div>

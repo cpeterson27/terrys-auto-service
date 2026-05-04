@@ -37,7 +37,7 @@ export const generateTokens = (userId: string, email: string, role: 'admin' | 'c
   const payload = { userId, email, role };
   
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET || 'secret', {
-    expiresIn: '1h',
+    expiresIn: '12h',
   });
 
   const refreshToken = jwt.sign(payload, process.env.JWT_SECRET || 'secret', {

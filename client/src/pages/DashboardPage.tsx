@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/authStore';
-import { BarChart3, FileText, DollarSign, Calendar } from 'lucide-react';
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, DollarSign, FileText } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface DashboardStats {
@@ -21,6 +21,43 @@ interface Booking {
   status: string;
 }
 
+const SERVICE_TIME_ORDER = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+
+const getDateKey = (date: Date | string) => {
+  const parsedDate = typeof date === 'string' ? new Date(date) : date;
+  return parsedDate.toISOString().slice(0, 10);
+};
+
+const getMonthDays = (monthDate: Date) => {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const days: Array<Date | null> = [];
+
+  for (let index = 0; index < firstDay.getDay(); index += 1) {
+    days.push(null);
+  }
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    days.push(new Date(year, month, day));
+  }
+
+  return days;
+};
+
+const sortBookings = (bookings: Booking[]) =>
+  [...bookings].sort((firstBooking, secondBooking) => {
+    const firstDate = new Date(firstBooking.serviceDate).getTime();
+    const secondDate = new Date(secondBooking.serviceDate).getTime();
+
+    if (firstDate !== secondDate) {
+      return firstDate - secondDate;
+    }
+
+    return SERVICE_TIME_ORDER.indexOf(firstBooking.serviceTime) - SERVICE_TIME_ORDER.indexOf(secondBooking.serviceTime);
+  });
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const [stats, setStats] = React.useState<DashboardStats>({
@@ -30,14 +67,19 @@ const DashboardPage: React.FC = () => {
     monthExpenses: 0,
     yearExpenses: 0,
   });
-  const [recentBookings, setRecentBookings] = React.useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = React.useState<Booking[]>([]);
+  const [calendarMonth, setCalendarMonth] = React.useState(() => new Date());
   const [error, setError] = React.useState('');
 
   const loadStats = React.useCallback(async () => {
     try {
-      const response = await api.get('/dashboard/stats');
-      setStats(response.data.stats);
-      setRecentBookings(response.data.recentBookings);
+      const [dashboardResponse, bookingsResponse] = await Promise.all([
+        api.get('/dashboard/stats'),
+        api.get('/bookings'),
+      ]);
+
+      setStats(dashboardResponse.data.stats);
+      setAllBookings(bookingsResponse.data.bookings);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not load dashboard');
     }
@@ -59,13 +101,37 @@ const DashboardPage: React.FC = () => {
   };
 
   const cancelBooking = (bookingId: string) => {
-    const reason = window.prompt('Optional: add a cancellation reason for the customer email.');
+    const reason = window.prompt('Optional: add a cancellation reason for the customer email. They will be asked to choose another day.');
 
     if (reason === null) {
       return;
     }
 
     updateBookingStatus(bookingId, 'cancelled', reason);
+  };
+
+  const activeBookings = React.useMemo(
+    () => sortBookings(allBookings.filter((booking) => ['pending', 'confirmed'].includes(booking.status))),
+    [allBookings]
+  );
+  const calendarBookingsByDay = React.useMemo(() => {
+    const groups = new Map<string, Booking[]>();
+
+    activeBookings.forEach((booking) => {
+      const key = getDateKey(booking.serviceDate);
+      groups.set(key, [...(groups.get(key) || []), booking]);
+    });
+
+    return groups;
+  }, [activeBookings]);
+  const calendarDays = React.useMemo(() => getMonthDays(calendarMonth), [calendarMonth]);
+  const calendarTitle = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+  }).format(calendarMonth);
+
+  const changeCalendarMonth = (offset: number) => {
+    setCalendarMonth((currentMonth) => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
   };
 
   return (
@@ -123,13 +189,77 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-bold">Appointment Calendar</h2>
+            <p className="text-gray-600 mt-1">Pending and confirmed appointments by service day.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => changeCalendarMonth(-1)}
+              className="rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-50"
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <p className="min-w-[160px] text-center font-semibold text-gray-900">{calendarTitle}</p>
+            <button
+              type="button"
+              onClick={() => changeCalendarMonth(1)}
+              className="rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-50"
+              aria-label="Next month"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 border border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <div key={day} className="border-b border-gray-200 bg-gray-50 px-2 py-2 text-center">
+              {day}
+            </div>
+          ))}
+          {calendarDays.map((day, index) => {
+            const dayBookings = day ? calendarBookingsByDay.get(getDateKey(day)) || [] : [];
+
+            return (
+              <div key={day ? getDateKey(day) : `empty-${index}`} className="min-h-[120px] border-b border-r border-gray-200 p-2">
+                {day && (
+                  <>
+                    <p className="mb-2 font-bold text-gray-900">{day.getDate()}</p>
+                    <div className="space-y-1">
+                      {dayBookings.map((booking) => (
+                        <div
+                          key={booking._id}
+                          className={`rounded px-2 py-1 text-left normal-case tracking-normal ${
+                            booking.status === 'pending'
+                              ? 'bg-yellow-50 text-yellow-800'
+                              : 'bg-green-50 text-green-800'
+                          }`}
+                        >
+                          <p className="truncate font-semibold">{booking.serviceTime}</p>
+                          <p className="truncate">{booking.customerId?.name || booking.customerId?.email || 'Customer'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-2xl font-bold mb-4">Upcoming Appointments</h2>
-        {recentBookings.length === 0 ? (
-          <p className="text-gray-500 py-4">No appointments booked yet.</p>
+        {activeBookings.length === 0 ? (
+          <p className="text-gray-500 py-4">No active appointments booked yet.</p>
         ) : (
           <div className="divide-y">
-            {recentBookings.map((booking) => (
+            {activeBookings.map((booking) => (
               <div key={booking._id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div>
                   <p className="font-semibold text-gray-900">

@@ -36,10 +36,10 @@ router.get('/stats', async (_req: AuthRequest, res: Response, next: NextFunction
         { $match: { date: { $gte: yearStart } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
-      Booking.find()
+      Booking.find({ status: { $in: ['pending', 'confirmed'] }, serviceDate: { $gte: monthStart } })
         .populate('customerId', 'name email')
         .sort({ serviceDate: 1, serviceTime: 1 })
-        .limit(5),
+        .limit(8),
     ]);
 
     res.json({

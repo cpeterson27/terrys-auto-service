@@ -59,7 +59,7 @@ const HomePage: React.FC = () => {
     const loadGallery = async () => {
       try {
         const response = await api.get('/gallery/public');
-        setItems(response.data.items);
+        setItems(response.data.items || []);
       } catch {
         setItems([]);
       }

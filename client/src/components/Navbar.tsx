@@ -13,6 +13,28 @@ const Navbar: React.FC = () => {
     navigate('/login');
   };
 
+  const closeMenu = () => setIsOpen(false);
+
+  const publicLinks = (
+    <>
+      <Link to="/" className="text-gray-600 hover:text-gray-900" onClick={closeMenu}>
+        Home
+      </Link>
+      <a href="/#services" className="text-gray-600 hover:text-gray-900" onClick={closeMenu}>
+        Services
+      </a>
+      <a href="/#work" className="text-gray-600 hover:text-gray-900" onClick={closeMenu}>
+        Work
+      </a>
+      <a href="/#contact" className="text-gray-600 hover:text-gray-900" onClick={closeMenu}>
+        Contact
+      </a>
+      <Link to="/login" className="text-gray-600 hover:text-gray-900" onClick={closeMenu}>
+        Login
+      </Link>
+    </>
+  );
+
   return (
     <nav className="bg-white shadow">
       <div className="container mx-auto px-4 py-4">
@@ -22,7 +44,9 @@ const Navbar: React.FC = () => {
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">
-            {user?.role === 'admin' ? (
+            {!user ? (
+              publicLinks
+            ) : user.role === 'admin' ? (
               <>
                 <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
                   Dashboard
@@ -69,7 +93,11 @@ const Navbar: React.FC = () => {
 
         {isOpen && (
           <div className="md:hidden mt-4 space-y-2">
-            {user?.role === 'admin' ? (
+            {!user ? (
+              <div className="flex flex-col space-y-2">
+                {publicLinks}
+              </div>
+            ) : user.role === 'admin' ? (
               <>
                 <Link
                   to="/dashboard"
@@ -125,12 +153,14 @@ const Navbar: React.FC = () => {
                 </Link>
               </>
             )}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left text-gray-600 hover:text-red-600"
-            >
-              Logout
-            </button>
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="w-full text-left text-gray-600 hover:text-red-600"
+              >
+                Logout
+              </button>
+            )}
           </div>
         )}
       </div>

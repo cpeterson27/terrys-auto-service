@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Express backend for Terry's auto service platform",
   "main": "dist/app.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Professional auto service business platform for Terry",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "dev:server": "npm run dev --prefix server",

@@ -2,6 +2,9 @@
   "name": "terry-auto-service-client",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "homepage": ".",
   "proxy": "http://localhost:5001",
   "dependencies": {

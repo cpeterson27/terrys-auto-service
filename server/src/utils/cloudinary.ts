@@ -1,6 +1,11 @@
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 
+export interface UploadedGalleryFile {
+  buffer: Buffer;
+  mimetype: string;
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -10,7 +15,7 @@ cloudinary.config({
 export const isCloudinaryConfigured = () =>
   Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
 
-export const uploadGalleryMedia = (file: Express.Multer.File): Promise<UploadApiResponse> => {
+export const uploadGalleryMedia = (file: UploadedGalleryFile): Promise<UploadApiResponse> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

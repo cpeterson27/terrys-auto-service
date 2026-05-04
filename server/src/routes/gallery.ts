@@ -6,12 +6,13 @@ import {
   deleteGalleryMedia,
   getVideoThumbnailUrl,
   isCloudinaryConfigured,
+  UploadedGalleryFile,
   uploadGalleryMedia,
 } from '../utils/cloudinary';
 
 const router = Router();
 type GalleryUploadRequest = AuthRequest & {
-  file?: Express.Multer.File;
+  file?: UploadedGalleryFile;
 };
 
 const upload = multer({

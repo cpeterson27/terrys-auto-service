@@ -116,7 +116,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const cancelBooking = (bookingId: string) => {
-    const reason = window.prompt('Optional: add a cancellation reason for the customer email. They will be asked to choose another day.');
+    const reason = window.prompt('Optional: add a cancellation reason for the customer email. They will receive an apology and be asked to choose another day.');
 
     if (reason === null) {
       return;
@@ -285,20 +285,12 @@ const DashboardPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className={`rounded px-2 py-1 text-sm font-medium capitalize ${getStatusClassName(booking.status)}`}>{booking.status}</span>
                   {booking.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => updateBookingStatus(booking._id, 'confirmed')}
-                        className="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => cancelBooking(booking._id)}
-                        className="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-100"
-                      >
-                        Cancel
-                      </button>
-                    </>
+                    <button
+                      onClick={() => updateBookingStatus(booking._id, 'confirmed')}
+                      className="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700"
+                    >
+                      Confirm
+                    </button>
                   )}
                   {booking.status === 'confirmed' && (
                     <>
@@ -309,18 +301,20 @@ const DashboardPage: React.FC = () => {
                         Back to Pending
                       </button>
                       <button
-                        onClick={() => cancelBooking(booking._id)}
-                        className="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-100"
-                      >
-                        Cancel
-                      </button>
-                      <button
                         onClick={() => updateBookingStatus(booking._id, 'completed')}
                         className="bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm font-semibold hover:bg-blue-100"
                       >
                         Complete
                       </button>
                     </>
+                  )}
+                  {booking.status !== 'cancelled' && (
+                    <button
+                      onClick={() => cancelBooking(booking._id)}
+                      className="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-100"
+                    >
+                      Cancel / Reschedule
+                    </button>
                   )}
                 </div>
               </div>

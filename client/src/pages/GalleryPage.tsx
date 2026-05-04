@@ -49,6 +49,8 @@ const GalleryPage: React.FC = () => {
   const [showForm, setShowForm] = React.useState(false);
   const [error, setError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [form, setForm] = React.useState({
     title: '',
     description: '',
@@ -111,6 +113,26 @@ const GalleryPage: React.FC = () => {
     }
   };
 
+  const setMediaFile = (file?: File) => {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      setError('Only image and video files can be uploaded');
+      return;
+    }
+
+    setError('');
+    setForm((currentForm) => ({ ...currentForm, mediaFile: file }));
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    setMediaFile(event.dataTransfer.files?.[0]);
+  };
+
   const updateItem = async (id: string, updates: Partial<GalleryItem>) => {
     try {
       await api.patch(`/gallery/${id}`, updates);
@@ -163,20 +185,42 @@ const GalleryPage: React.FC = () => {
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Photo or Video</label>
-            <label className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDraggingFile(true);
+              }}
+              onDragLeave={() => setIsDraggingFile(false)}
+              onDrop={handleDrop}
+              className={`flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${
+                isDraggingFile
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+              }`}
+            >
               <Upload className="mb-3 text-blue-600" size={28} />
               <span className="font-medium text-gray-900">
-                {form.mediaFile ? form.mediaFile.name : 'Choose a file to upload'}
+                {form.mediaFile ? form.mediaFile.name : 'Drop a file here or click to choose'}
               </span>
               <span className="mt-1 text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*,video/*"
-                onChange={(e) => setForm({ ...form, mediaFile: e.target.files?.[0] || null })}
+                onChange={(e) => setMediaFile(e.target.files?.[0])}
                 className="hidden"
                 required
               />
-            </label>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>

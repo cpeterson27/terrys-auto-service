@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import multer from 'multer';
+import multer, { MulterError } from 'multer';
 import { GalleryItem } from '../models/GalleryItem';
 import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth';
 import {
@@ -29,6 +29,7 @@ const upload = multer({
     cb(new Error('Only image and video files can be uploaded'));
   },
 });
+const uploadSingleMedia = upload.single('media');
 
 const parseBoolean = (value: unknown, fallback: boolean) => {
   if (value === undefined) {
@@ -66,7 +67,19 @@ router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => 
   }
 });
 
-router.post('/', upload.single('media'), async (req: GalleryUploadRequest, res: Response, next: NextFunction) => {
+router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) => {
+  uploadSingleMedia(req as any, res as any, (error: any) => {
+    if (error instanceof MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File is too large. Upload a file under 100 MB.' });
+    }
+
+    if (error) {
+      return res.status(400).json({ error: error.message || 'Could not read uploaded file' });
+    }
+
+    next();
+  });
+}, async (req: GalleryUploadRequest, res: Response, next: NextFunction) => {
   try {
     const {
       title,
@@ -85,7 +98,7 @@ router.post('/', upload.single('media'), async (req: GalleryUploadRequest, res: 
     }
 
     if (req.file && !isCloudinaryConfigured()) {
-      return res.status(500).json({ error: 'Cloudinary is not configured on the server' });
+      return res.status(503).json({ error: 'Cloudinary is not configured on the server' });
     }
 
     let mediaType: 'image' | 'video';
@@ -94,7 +107,15 @@ router.post('/', upload.single('media'), async (req: GalleryUploadRequest, res: 
     let cloudinaryPublicId = '';
 
     if (req.file) {
-      const uploadResult = await uploadGalleryMedia(req.file);
+      let uploadResult;
+
+      try {
+        uploadResult = await uploadGalleryMedia(req.file);
+      } catch (error: any) {
+        console.error('Cloudinary upload failed:', error);
+        return res.status(502).json({ error: error.message || 'Cloudinary upload failed' });
+      }
+
       mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';
       mediaUrl = uploadResult.secure_url;
       thumbnailUrl = mediaType === 'video' ? getVideoThumbnailUrl(uploadResult.public_id) : '';

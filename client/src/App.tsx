@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 
@@ -101,6 +102,7 @@ function App() {
             }
           />
         </Routes>
+        <Analytics />
       </div>
     </Router>
   );

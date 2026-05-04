@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Plus, Trash2, Video } from 'lucide-react';
+import { Image, Plus, Trash2, Upload, Video } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface GalleryItem {
@@ -19,12 +19,11 @@ const GalleryPage: React.FC = () => {
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [showForm, setShowForm] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState({
     title: '',
     description: '',
-    mediaType: 'image',
-    mediaUrl: '',
-    thumbnailUrl: '',
+    mediaFile: null as File | null,
     category: 'Auto Service',
     sortOrder: '0',
     published: true,
@@ -47,18 +46,26 @@ const GalleryPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSaving(true);
 
     try {
-      await api.post('/gallery', {
-        ...form,
-        sortOrder: Number(form.sortOrder),
-      });
+      const payload = new FormData();
+      payload.append('title', form.title);
+      payload.append('description', form.description);
+      payload.append('category', form.category);
+      payload.append('sortOrder', form.sortOrder);
+      payload.append('published', String(form.published));
+      payload.append('featured', String(form.featured));
+
+      if (form.mediaFile) {
+        payload.append('media', form.mediaFile);
+      }
+
+      await api.post('/gallery', payload);
       setForm({
         title: '',
         description: '',
-        mediaType: 'image',
-        mediaUrl: '',
-        thumbnailUrl: '',
+        mediaFile: null,
         category: 'Auto Service',
         sortOrder: '0',
         published: true,
@@ -68,6 +75,8 @@ const GalleryPage: React.FC = () => {
       await loadItems();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not save gallery item');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -121,20 +130,22 @@ const GalleryPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" required />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Media Type</label>
-            <select value={form.mediaType} onChange={(e) => setForm({ ...form, mediaType: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option value="image">Image</option>
-              <option value="video">Video</option>
-            </select>
-          </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Media URL</label>
-            <input value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Cloudinary URL will go here tomorrow" required />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Video Thumbnail URL</label>
-            <input value={form.thumbnailUrl} onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Optional for videos" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Photo or Video</label>
+            <label className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100">
+              <Upload className="mb-3 text-blue-600" size={28} />
+              <span className="font-medium text-gray-900">
+                {form.mediaFile ? form.mediaFile.name : 'Choose a file to upload'}
+              </span>
+              <span className="mt-1 text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => setForm({ ...form, mediaFile: e.target.files?.[0] || null })}
+                className="hidden"
+                required
+              />
+            </label>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -148,15 +159,15 @@ const GalleryPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" rows={3} />
           </div>
-          <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">
-            Save Media
+          <button type="submit" disabled={saving} className="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
+            {saving ? 'Uploading...' : 'Save Media'}
           </button>
         </form>
       )}
 
       {items.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-600">
-          No gallery media yet. Add Terry's first photo or video when the file is hosted.
+          No gallery media yet. Add Terry's first photo or video from this dashboard.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -84,6 +84,9 @@ const DashboardPage: React.FC = () => {
   });
   const [allBookings, setAllBookings] = React.useState<Booking[]>([]);
   const [calendarMonth, setCalendarMonth] = React.useState(() => new Date());
+  const [cancellationBooking, setCancellationBooking] = React.useState<Booking | null>(null);
+  const [cancellationReason, setCancellationReason] = React.useState('');
+  const [cancellationSaving, setCancellationSaving] = React.useState(false);
   const [error, setError] = React.useState('');
 
   const loadStats = React.useCallback(async () => {
@@ -115,14 +118,34 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const cancelBooking = (bookingId: string) => {
-    const reason = window.prompt('Optional: add a cancellation reason for the customer email. They will receive an apology and be asked to choose another day.');
+  const openCancellationModal = (booking: Booking) => {
+    setCancellationBooking(booking);
+    setCancellationReason('');
+  };
 
-    if (reason === null) {
+  const closeCancellationModal = () => {
+    if (cancellationSaving) {
       return;
     }
 
-    updateBookingStatus(bookingId, 'cancelled', reason);
+    setCancellationBooking(null);
+    setCancellationReason('');
+  };
+
+  const submitCancellation = async () => {
+    if (!cancellationBooking) {
+      return;
+    }
+
+    setCancellationSaving(true);
+
+    try {
+      await updateBookingStatus(cancellationBooking._id, 'cancelled', cancellationReason);
+      setCancellationBooking(null);
+      setCancellationReason('');
+    } finally {
+      setCancellationSaving(false);
+    }
   };
 
   const sortedBookings = React.useMemo(() => sortBookings(allBookings), [allBookings]);
@@ -310,7 +333,7 @@ const DashboardPage: React.FC = () => {
                   )}
                   {booking.status !== 'cancelled' && (
                     <button
-                      onClick={() => cancelBooking(booking._id)}
+                      onClick={() => openCancellationModal(booking)}
                       className="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-100"
                     >
                       Cancel / Reschedule
@@ -322,6 +345,60 @@ const DashboardPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {cancellationBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Cancel and reschedule</p>
+              <h2 className="mt-1 text-2xl font-bold text-gray-950">Email the customer to choose another day</h2>
+              <p className="mt-2 text-gray-600">
+                This will cancel the appointment and send an apology asking the customer to submit a new request.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="font-semibold text-gray-950">
+                {cancellationBooking.customerId?.name || cancellationBooking.customerId?.email || 'Customer'}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">{cancellationBooking.vehicleInfo}</p>
+              <p className="text-sm text-gray-600">
+                {formatDate(cancellationBooking.serviceDate)} at {cancellationBooking.serviceTime}
+              </p>
+            </div>
+
+            <label className="mt-5 block text-sm font-medium text-gray-700">
+              Message to include in the email
+              <textarea
+                value={cancellationReason}
+                onChange={(event) => setCancellationReason(event.target.value)}
+                rows={4}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Example: Terry had an emergency come up and needs to reschedule. Please choose another day that works for you."
+              />
+            </label>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeCancellationModal}
+                disabled={cancellationSaving}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Appointment
+              </button>
+              <button
+                type="button"
+                onClick={submitCancellation}
+                disabled={cancellationSaving}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {cancellationSaving ? 'Sending...' : 'Cancel Appointment & Email Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

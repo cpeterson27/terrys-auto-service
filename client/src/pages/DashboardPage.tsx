@@ -58,6 +58,21 @@ const sortBookings = (bookings: Booking[]) =>
     return SERVICE_TIME_ORDER.indexOf(firstBooking.serviceTime) - SERVICE_TIME_ORDER.indexOf(secondBooking.serviceTime);
   });
 
+const getStatusClassName = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-50 text-yellow-800';
+    case 'confirmed':
+      return 'bg-green-50 text-green-800';
+    case 'completed':
+      return 'bg-blue-50 text-blue-800';
+    case 'cancelled':
+      return 'bg-red-50 text-red-800';
+    default:
+      return 'bg-gray-50 text-gray-800';
+  }
+};
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const [stats, setStats] = React.useState<DashboardStats>({
@@ -110,20 +125,17 @@ const DashboardPage: React.FC = () => {
     updateBookingStatus(bookingId, 'cancelled', reason);
   };
 
-  const activeBookings = React.useMemo(
-    () => sortBookings(allBookings.filter((booking) => ['pending', 'confirmed'].includes(booking.status))),
-    [allBookings]
-  );
+  const sortedBookings = React.useMemo(() => sortBookings(allBookings), [allBookings]);
   const calendarBookingsByDay = React.useMemo(() => {
     const groups = new Map<string, Booking[]>();
 
-    activeBookings.forEach((booking) => {
+    sortedBookings.forEach((booking) => {
       const key = getDateKey(booking.serviceDate);
       groups.set(key, [...(groups.get(key) || []), booking]);
     });
 
     return groups;
-  }, [activeBookings]);
+  }, [sortedBookings]);
   const calendarDays = React.useMemo(() => getMonthDays(calendarMonth), [calendarMonth]);
   const calendarTitle = new Intl.DateTimeFormat('en-US', {
     month: 'long',
@@ -193,7 +205,7 @@ const DashboardPage: React.FC = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
           <div>
             <h2 className="text-2xl font-bold">Appointment Calendar</h2>
-            <p className="text-gray-600 mt-1">Pending and confirmed appointments by service day.</p>
+            <p className="text-gray-600 mt-1">All appointments by service day, color-coded by status.</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -234,14 +246,11 @@ const DashboardPage: React.FC = () => {
                       {dayBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className={`rounded px-2 py-1 text-left normal-case tracking-normal ${
-                            booking.status === 'pending'
-                              ? 'bg-yellow-50 text-yellow-800'
-                              : 'bg-green-50 text-green-800'
-                          }`}
+                          className={`rounded px-2 py-1 text-left normal-case tracking-normal ${getStatusClassName(booking.status)}`}
                         >
                           <p className="truncate font-semibold">{booking.serviceTime}</p>
                           <p className="truncate">{booking.customerId?.name || booking.customerId?.email || 'Customer'}</p>
+                          <p className="capitalize">{booking.status}</p>
                         </div>
                       ))}
                     </div>
@@ -254,12 +263,12 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-2xl font-bold mb-4">Upcoming Appointments</h2>
-        {activeBookings.length === 0 ? (
-          <p className="text-gray-500 py-4">No active appointments booked yet.</p>
+        <h2 className="text-2xl font-bold mb-4">Appointments</h2>
+        {sortedBookings.length === 0 ? (
+          <p className="text-gray-500 py-4">No appointments booked yet.</p>
         ) : (
           <div className="divide-y">
-            {activeBookings.map((booking) => (
+            {sortedBookings.map((booking) => (
               <div key={booking._id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div>
                   <p className="font-semibold text-gray-900">
@@ -274,7 +283,7 @@ const DashboardPage: React.FC = () => {
                   {formatDate(booking.serviceDate)} at {booking.serviceTime}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium capitalize text-blue-700">{booking.status}</span>
+                  <span className={`rounded px-2 py-1 text-sm font-medium capitalize ${getStatusClassName(booking.status)}`}>{booking.status}</span>
                   {booking.status === 'pending' && (
                     <>
                       <button

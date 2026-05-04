@@ -14,10 +14,26 @@ import invoiceRoutes from './routes/invoices';
 dotenv.config();
 
 const app: Express = express();
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'https://terrysauto.shop',
+  'https://www.terrysauto.shop',
+  ...(process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]);
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json());

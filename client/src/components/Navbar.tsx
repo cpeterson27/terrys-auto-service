@@ -75,13 +75,15 @@ const Navbar: React.FC = () => {
                 </Link>
               </>
             )}
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 text-gray-600 hover:text-red-600"
-            >
-              <LogOut size={20} />
-              <span>Logout</span>
-            </button>
+            {authenticatedUser && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 text-gray-600 hover:text-red-600"
+              >
+                <LogOut size={20} />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
 
           <button

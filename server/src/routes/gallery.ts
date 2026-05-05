@@ -30,7 +30,7 @@ const upload = multer({
     cb(new Error('Only image and video files can be uploaded'));
   },
 });
-const uploadSingleMedia = upload.single('media');
+const uploadGalleryFiles = upload.array('media');
 
 const parseBoolean = (value: unknown, fallback: boolean) => {
   if (value === undefined) {
@@ -43,6 +43,20 @@ const parseBoolean = (value: unknown, fallback: boolean) => {
 const normalizeCategory = (value: unknown) => {
   const category = typeof value === 'string' ? value.trim() : '';
   return category || 'Auto Service';
+};
+
+const getUploadedFiles = (req: AuthRequest): UploadedGalleryFile[] => {
+  const files = (req as any).files;
+
+  if (Array.isArray(files)) {
+    return files;
+  }
+
+  if ((req as GalleryUploadRequest).file) {
+    return [(req as GalleryUploadRequest).file as UploadedGalleryFile];
+  }
+
+  return [];
 };
 
 router.get('/public', async (_req, res: Response, next: NextFunction) => {
@@ -68,8 +82,8 @@ router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => 
   }
 });
 
-router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) => {
-  uploadSingleMedia(req as any, res as any, (error: any) => {
+router.post('/', (req: AuthRequest, res: Response, next: NextFunction) => {
+  uploadGalleryFiles(req as any, res as any, (error: any) => {
     if (error instanceof MulterError && error.code === 'LIMIT_FILE_SIZE') {
       return res.status(413).json({ error: 'File is too large. Upload a file under 100 MB.' });
     }
@@ -80,7 +94,7 @@ router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) 
 
     next();
   });
-}, async (req: GalleryUploadRequest, res: Response, next: NextFunction) => {
+}, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const {
       title,
@@ -94,12 +108,52 @@ router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) 
       sortOrder,
     } = req.body;
 
-    if (!title || (!req.file && !requestedMediaUrl)) {
+    const uploadedFiles = getUploadedFiles(req);
+
+    if (uploadedFiles.length === 0 && (!title || !requestedMediaUrl)) {
       return res.status(400).json({ error: 'Title and media file are required' });
     }
 
-    if (req.file && !isCloudinaryConfigured()) {
+    if (uploadedFiles.length > 0 && !isCloudinaryConfigured()) {
       return res.status(503).json({ error: 'Cloudinary is not configured on the server' });
+    }
+
+    if (uploadedFiles.length > 0) {
+      const createdItems = [];
+      const baseSortOrder = Number(sortOrder) || 0;
+
+      for (const [index, file] of uploadedFiles.entries()) {
+        let uploadResult;
+
+        try {
+          uploadResult = await uploadGalleryMedia(file);
+        } catch (error: any) {
+          console.error('Cloudinary upload failed:', error);
+          return res.status(502).json({ error: getCloudinaryErrorMessage(error) });
+        }
+
+        const mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';
+        const originalName = (file.originalname || '').replace(/\.[^/.]+$/, '').trim();
+        const itemTitle = String(title || '').trim() || originalName || `Gallery item ${index + 1}`;
+        const titleSuffix = uploadedFiles.length > 1 && title ? ` ${index + 1}` : '';
+
+        const item = await GalleryItem.create({
+          title: `${itemTitle}${titleSuffix}`,
+          description,
+          mediaType,
+          mediaUrl: uploadResult.secure_url,
+          thumbnailUrl: mediaType === 'video' ? getVideoThumbnailUrl(uploadResult.public_id) : '',
+          category: normalizeCategory(category),
+          cloudinaryPublicId: uploadResult.public_id,
+          featured: parseBoolean(featured, true),
+          published: parseBoolean(published, true),
+          sortOrder: baseSortOrder + index,
+        });
+
+        createdItems.push(item);
+      }
+
+      return res.status(201).json({ item: createdItems[0], items: createdItems });
     }
 
     let mediaType: 'image' | 'video';
@@ -107,27 +161,11 @@ router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) 
     let thumbnailUrl = String(requestedThumbnailUrl || '');
     let cloudinaryPublicId = '';
 
-    if (req.file) {
-      let uploadResult;
-
-      try {
-        uploadResult = await uploadGalleryMedia(req.file);
-      } catch (error: any) {
-        console.error('Cloudinary upload failed:', error);
-        return res.status(502).json({ error: getCloudinaryErrorMessage(error) });
-      }
-
-      mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';
-      mediaUrl = uploadResult.secure_url;
-      thumbnailUrl = mediaType === 'video' ? getVideoThumbnailUrl(uploadResult.public_id) : '';
-      cloudinaryPublicId = uploadResult.public_id;
-    } else {
-      if (!['image', 'video'].includes(requestedMediaType)) {
-        return res.status(400).json({ error: 'Media type must be image or video' });
-      }
-
-      mediaType = requestedMediaType;
+    if (!['image', 'video'].includes(requestedMediaType)) {
+      return res.status(400).json({ error: 'Media type must be image or video' });
     }
+
+    mediaType = requestedMediaType;
 
     const item = await GalleryItem.create({
       title,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle, Clock, Image, LayoutDashboard, Mail, PlayCircle, ShieldCheck, Wrench, X } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Image, LayoutDashboard, Mail, Pencil, PlayCircle, ShieldCheck, Wrench, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -216,19 +216,9 @@ const HomePage: React.FC = () => {
                           </div>
                         </button>
                         <div className="p-5">
-                          <div className="flex items-center gap-2 text-sm text-blue-700 font-medium mb-2">
-                            {item.mediaType === 'video' ? <PlayCircle size={16} /> : <Image size={16} />}
-                            <span>{getCategory(item.category)}</span>
-                          </div>
+                          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">{getCategory(item.category)}</p>
                           <h4 className="font-bold text-lg text-gray-950">{item.title}</h4>
                           {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedWork(item)}
-                            className="mt-4 text-sm font-semibold text-blue-700 hover:text-blue-800"
-                          >
-                            Open larger view
-                          </button>
                         </div>
                       </article>
                     ))}
@@ -370,11 +360,11 @@ const HomePage: React.FC = () => {
                   {selectedWork.description || 'Service work from Terry\'s shop.'}
                 </p>
                 <Link
-                  to={primaryAction.to}
+                  to={user?.role === 'admin' ? `/gallery?edit=${selectedWork._id}` : primaryAction.to}
                   className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
                 >
-                  <Calendar size={18} />
-                  {primaryAction.label}
+                  {user?.role === 'admin' ? <Pencil size={18} /> : <Calendar size={18} />}
+                  {user?.role === 'admin' ? 'Edit in Gallery' : primaryAction.label}
                 </Link>
               </div>
             </div>

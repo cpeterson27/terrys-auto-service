@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Image, Pencil, Plus, Trash2, Upload, Video, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 
 interface GalleryItem {
@@ -45,6 +46,7 @@ const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
 };
 
 const GalleryPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [showForm, setShowForm] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<GalleryItem | null>(null);
@@ -56,13 +58,13 @@ const GalleryPage: React.FC = () => {
   const [form, setForm] = React.useState({
     title: '',
     description: '',
-    mediaFile: null as File | null,
+    mediaFiles: [] as File[],
     category: 'Auto Service',
     sortOrder: '0',
     published: true,
     featured: true,
   });
-  const [mediaPreviewUrl, setMediaPreviewUrl] = React.useState('');
+  const [mediaPreviewUrls, setMediaPreviewUrls] = React.useState<string[]>([]);
   const [editForm, setEditForm] = React.useState({
     title: '',
     description: '',
@@ -88,23 +90,57 @@ const GalleryPage: React.FC = () => {
   const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
 
   React.useEffect(() => {
-    if (!form.mediaFile) {
-      setMediaPreviewUrl('');
+    if (form.mediaFiles.length === 0) {
+      setMediaPreviewUrls([]);
       return;
     }
 
-    const previewUrl = URL.createObjectURL(form.mediaFile);
-    setMediaPreviewUrl(previewUrl);
+    const previewUrls = form.mediaFiles.map((file) => URL.createObjectURL(file));
+    setMediaPreviewUrls(previewUrls);
 
-    return () => URL.revokeObjectURL(previewUrl);
-  }, [form.mediaFile]);
+    return () => previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+  }, [form.mediaFiles]);
+
+  React.useEffect(() => {
+    const itemToEdit = searchParams.get('edit');
+
+    if (!itemToEdit || items.length === 0) {
+      return;
+    }
+
+    const matchedItem = items.find((item) => item._id === itemToEdit);
+
+    if (matchedItem) {
+      openEditModal(matchedItem);
+      setSearchParams({}, { replace: true });
+    }
+  }, [items, searchParams, setSearchParams]);
+
+  const resetUploadForm = () => {
+    setForm({
+      title: '',
+      description: '',
+      mediaFiles: [],
+      category: 'Auto Service',
+      sortOrder: '0',
+      published: true,
+      featured: true,
+    });
+    setIsDraggingFile(false);
+    setShowForm(false);
+    setError('');
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!form.mediaFile) {
-      setError('Choose or drop a photo or video before saving');
+    if (form.mediaFiles.length === 0) {
+      setError('Choose or drop at least one photo or video before saving');
       return;
     }
 
@@ -119,21 +155,10 @@ const GalleryPage: React.FC = () => {
       payload.append('published', String(form.published));
       payload.append('featured', String(form.featured));
 
-      if (form.mediaFile) {
-        payload.append('media', form.mediaFile);
-      }
+      form.mediaFiles.forEach((file) => payload.append('media', file));
 
       await api.post('/gallery', payload);
-      setForm({
-        title: '',
-        description: '',
-        mediaFile: null,
-        category: 'Auto Service',
-        sortOrder: '0',
-        published: true,
-        featured: true,
-      });
-      setShowForm(false);
+      resetUploadForm();
       await loadItems();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not save gallery item');
@@ -142,24 +167,28 @@ const GalleryPage: React.FC = () => {
     }
   };
 
-  const setMediaFile = (file?: File) => {
-    if (!file) {
+  const setMediaFiles = (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
+
+    if (selectedFiles.length === 0) {
       return;
     }
 
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    const invalidFile = selectedFiles.find((file) => !file.type.startsWith('image/') && !file.type.startsWith('video/'));
+
+    if (invalidFile) {
       setError('Only image and video files can be uploaded');
       return;
     }
 
     setError('');
-    setForm((currentForm) => ({ ...currentForm, mediaFile: file }));
+    setForm((currentForm) => ({ ...currentForm, mediaFiles: selectedFiles }));
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDraggingFile(false);
-    setMediaFile(event.dataTransfer.files?.[0]);
+    setMediaFiles(event.dataTransfer.files);
   };
 
   const updateItem = async (id: string, updates: Partial<GalleryItem>) => {
@@ -256,10 +285,10 @@ const GalleryPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" required />
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Optional for batch uploads" />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Photo or Video</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Photos or Videos</label>
             <div
               role="button"
               tabIndex={0}
@@ -282,28 +311,43 @@ const GalleryPage: React.FC = () => {
                   : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
             >
-              {form.mediaFile && mediaPreviewUrl ? (
-                <div className="grid w-full grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.8fr)]">
-                  <div className="aspect-video bg-gray-950">
-                    {form.mediaFile.type.startsWith('video/') ? (
-                      <video src={mediaPreviewUrl} controls className="h-full w-full object-contain" />
-                    ) : (
-                      <img src={mediaPreviewUrl} alt="Selected upload preview" className="h-full w-full object-cover" />
-                    )}
+              {form.mediaFiles.length > 0 && mediaPreviewUrls.length > 0 ? (
+                <div className="w-full p-4">
+                  <div className="mb-4 flex flex-col gap-1 text-left sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Preview</p>
+                      <p className="text-sm text-gray-600">
+                        {form.mediaFiles.length} file{form.mediaFiles.length === 1 ? '' : 's'} selected. These will publish in {form.category || 'Auto Service'}.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">Click or drop again to replace the selection.</p>
                   </div>
-                  <div className="flex flex-col justify-center p-5 text-left">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Preview</p>
-                    <p className="mt-2 break-words font-semibold text-gray-950">{form.title || form.mediaFile.name}</p>
-                    <p className="mt-1 text-sm text-gray-600">{form.category || 'Auto Service'}</p>
-                    {form.description && <p className="mt-3 line-clamp-3 text-sm text-gray-600">{form.description}</p>}
-                    <p className="mt-4 text-sm text-gray-500">Click or drop another file to replace it.</p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {form.mediaFiles.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm">
+                        <div className="aspect-video bg-gray-950">
+                          {file.type.startsWith('video/') ? (
+                            <video src={mediaPreviewUrls[index]} controls className="h-full w-full object-contain" />
+                          ) : (
+                            <img src={mediaPreviewUrls[index]} alt={`Selected upload preview ${index + 1}`} className="h-full w-full object-cover" />
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <p className="truncate font-semibold text-gray-950">
+                            {form.title ? `${form.title}${form.mediaFiles.length > 1 ? ` ${index + 1}` : ''}` : file.name.replace(/\.[^/.]+$/, '')}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-600">{form.category || 'Auto Service'}</p>
+                          {form.description && <p className="mt-2 line-clamp-2 text-sm text-gray-600">{form.description}</p>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : (
                 <div className="px-4 py-8">
                   <Upload className="mx-auto mb-3 text-blue-600" size={28} />
-                  <span className="font-medium text-gray-900">Drop a file here or click to choose</span>
-                  <span className="mt-1 block text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
+                  <span className="font-medium text-gray-900">Drop files here or click to choose</span>
+                  <span className="mt-1 block text-sm text-gray-500">Select one photo, one video, or a full batch at once.</span>
                 </div>
               )}
               <input
@@ -311,7 +355,8 @@ const GalleryPage: React.FC = () => {
                 name="media"
                 type="file"
                 accept="image/*,video/*"
-                onChange={(e) => setMediaFile(e.target.files?.[0])}
+                multiple
+                onChange={(e) => e.target.files && setMediaFiles(e.target.files)}
                 className="hidden"
               />
             </div>
@@ -328,9 +373,18 @@ const GalleryPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" rows={3} />
           </div>
-          <button type="submit" disabled={saving} className="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
-            {saving ? 'Uploading...' : 'Save Media'}
-          </button>
+          <div className="md:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={resetUploadForm}
+              className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {saving ? 'Uploading...' : `Save ${form.mediaFiles.length > 1 ? `${form.mediaFiles.length} Items` : 'Media'}`}
+            </button>
+          </div>
         </form>
       )}
 

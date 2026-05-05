@@ -3,6 +3,7 @@ import type { UploadApiResponse } from 'cloudinary';
 export interface UploadedGalleryFile {
   buffer: Buffer;
   mimetype: string;
+  originalname?: string;
 }
 
 const getCloudinaryUrl = () => process.env.CLOUDINARY_URL?.trim();

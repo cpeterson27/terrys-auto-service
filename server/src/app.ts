@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth';
 import bookingRoutes from './routes/bookings';
 import contactRoutes from './routes/contact';
+import customerRoutes from './routes/customers';
 import dashboardRoutes from './routes/dashboard';
 import expenseRoutes from './routes/expenses';
 import galleryRoutes from './routes/gallery';
@@ -61,6 +62,7 @@ const connectDB = async () => {
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/customers', customerRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/gallery', galleryRoutes);

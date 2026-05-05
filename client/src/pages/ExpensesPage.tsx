@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Plus, Printer, Trash2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Plus, Printer, Receipt, Trash2, TrendingDown } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface Expense {
@@ -69,6 +69,24 @@ const ExpensesPage: React.FC = () => {
       averageMonthly: yearTotal / (now.getMonth() + 1),
     };
   }, [expenses]);
+  const categoryTotals = React.useMemo(() => {
+    return expenses.reduce<Record<string, number>>((totalsByCategory, expense) => {
+      const category = expense.category || 'Uncategorized';
+      return {
+        ...totalsByCategory,
+        [category]: (totalsByCategory[category] || 0) + expense.amount,
+      };
+    }, {});
+  }, [expenses]);
+  const sortedCategoryTotals = React.useMemo(
+    () => Object.entries(categoryTotals).sort((first, second) => second[1] - first[1]),
+    [categoryTotals]
+  );
+  const recentExpenses = React.useMemo(
+    () => [...expenses].sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime()).slice(0, 5),
+    [expenses]
+  );
+  const quickCategories = ['Parts', 'Tools', 'Supplies', 'Fuel', 'Rent', 'Utilities', 'Insurance', 'Marketing'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -437,36 +455,43 @@ const ExpensesPage: React.FC = () => {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <h1 className="text-4xl font-bold text-gray-900">Expenses</h1>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={printTaxReport}
-            disabled={reportLoading}
-            className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            <Printer size={20} />
-            <span>{reportLoading ? 'Preparing...' : 'Tax Report'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={exportTaxCsv}
-            disabled={exportLoading}
-            className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <Download size={20} />
-            <span>{exportLoading ? 'Exporting...' : 'Download CSV'}</span>
-          </button>
+      <div className="mb-8 rounded-lg bg-gray-950 px-6 py-7 text-white shadow">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">Business Records</p>
+        <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold">Expenses</h1>
+            <p className="mt-2 text-gray-300">Track shop costs and prepare clean records for Terry’s tax professional.</p>
+          </div>
           <button
             type="button"
             onClick={() => setShowForm((current) => !current)}
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
           >
             <Plus size={20} />
             <span>Add Expense</span>
           </button>
         </div>
+      </div>
+
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={printTaxReport}
+          disabled={reportLoading}
+          className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+        >
+          <Printer size={20} />
+          <span>{reportLoading ? 'Preparing...' : 'Open Tax Report'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={exportTaxCsv}
+          disabled={exportLoading}
+          className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+        >
+          <Download size={20} />
+          <span>{exportLoading ? 'Exporting...' : 'Download Spreadsheet CSV'}</span>
+        </button>
       </div>
 
       {error && (
@@ -476,7 +501,12 @@ const ExpensesPage: React.FC = () => {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="mb-8 rounded-lg bg-white p-6 shadow">
+          <div className="mb-5">
+            <h2 className="text-2xl font-bold text-gray-950">Add Expense</h2>
+            <p className="mt-1 text-gray-600">Record a business cost with a clear category for reporting.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <input
@@ -495,6 +525,18 @@ const ExpensesPage: React.FC = () => {
               placeholder="Parts, tools, supplies..."
               required
             />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quickCategories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setForm({ ...form, category })}
+                  className="rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
@@ -518,28 +560,95 @@ const ExpensesPage: React.FC = () => {
               required
             />
           </div>
-          <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">
-            Save Expense
-          </button>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button type="submit" className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700">
+              Save Expense
+            </button>
+          </div>
         </form>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Total Expenses (Month)</p>
-          <p className="text-3xl font-bold">{formatCurrency(totals.monthTotal)}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm">This Month</p>
+              <p className="text-3xl font-bold">{formatCurrency(totals.monthTotal)}</p>
+            </div>
+            <TrendingDown className="text-red-500" size={34} />
+          </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Total Expenses (Year)</p>
-          <p className="text-3xl font-bold">{formatCurrency(totals.yearTotal)}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm">This Year</p>
+              <p className="text-3xl font-bold">{formatCurrency(totals.yearTotal)}</p>
+            </div>
+            <Receipt className="text-blue-500" size={34} />
+          </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Average Monthly</p>
-          <p className="text-3xl font-bold">{formatCurrency(totals.averageMonthly)}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm">Monthly Average</p>
+              <p className="text-3xl font-bold">{formatCurrency(totals.averageMonthly)}</p>
+            </div>
+            <FileSpreadsheet className="text-green-500" size={34} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="text-xl font-bold text-gray-950">Category Totals</h2>
+          <div className="mt-4 space-y-3">
+            {sortedCategoryTotals.length === 0 ? (
+              <p className="text-sm text-gray-500">Categories will appear after expenses are added.</p>
+            ) : sortedCategoryTotals.map(([category, total]) => (
+              <div key={category}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">{category}</span>
+                  <span className="font-semibold text-gray-950">{formatCurrency(total)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-gray-100">
+                  <div
+                    className="h-2 rounded-full bg-blue-600"
+                    style={{ width: `${Math.max(8, (total / Math.max(totals.yearTotal, 1)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="text-xl font-bold text-gray-950">Recent Expenses</h2>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {recentExpenses.length === 0 ? (
+              <p className="text-sm text-gray-500">No expenses recorded yet.</p>
+            ) : recentExpenses.map((expense) => (
+              <div key={expense._id} className="rounded-lg border border-gray-200 p-4">
+                <p className="font-semibold text-gray-950">{expense.description}</p>
+                <p className="mt-1 text-sm text-gray-600">{expense.category} · {formatDate(expense.date)}</p>
+                <p className="mt-2 text-lg font-bold text-gray-950">{formatCurrency(expense.amount)}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-bold text-gray-950">All Expenses</h2>
+        </div>
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>

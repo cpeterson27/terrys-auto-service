@@ -24,6 +24,7 @@ const ProfilePage: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deletePassword, setDeletePassword] = React.useState('');
   const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const isCustomer = user?.role === 'customer';
 
   React.useEffect(() => {
     const loadProfile = async () => {
@@ -51,7 +52,10 @@ const ProfilePage: React.FC = () => {
     setProfileLoading(true);
 
     try {
-      const response = await api.patch('/auth/profile', profileForm);
+      const response = await api.patch('/auth/profile', isCustomer ? profileForm : {
+        name: profileForm.name,
+        email: profileForm.email,
+      });
       setUser(response.data.user);
       setMessage(response.data.message || 'Profile updated.');
     } catch (err: any) {
@@ -108,7 +112,9 @@ const ProfilePage: React.FC = () => {
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900">Profile</h1>
-        <p className="mt-2 text-gray-600">Manage your account contact information and password.</p>
+        <p className="mt-2 text-gray-600">
+          {isCustomer ? 'Manage your contact information and password.' : 'Manage Terry’s owner login and password.'}
+        </p>
       </div>
 
       {error && (
@@ -128,7 +134,11 @@ const ProfilePage: React.FC = () => {
             <User className="text-blue-600" size={26} />
             <div>
               <h2 className="text-2xl font-bold text-gray-950">Account Details</h2>
-              <p className="text-sm text-gray-600">Update the information used for appointments and invoices.</p>
+              <p className="text-sm text-gray-600">
+                {isCustomer
+                  ? 'Update the information Terry uses for appointments and invoices.'
+                  : 'Update the owner name and login email for the dashboard.'}
+              </p>
             </div>
           </div>
 
@@ -155,16 +165,18 @@ const ProfilePage: React.FC = () => {
                 <p className="mt-2 text-sm text-yellow-700">This email still needs to be verified.</p>
               )}
             </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Cell Phone</label>
-              <input
-                type="tel"
-                value={profileForm.phone}
-                onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2"
-                required={user?.role === 'customer'}
-              />
-            </div>
+            {isCustomer && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Cell Phone</label>
+                <input
+                  type="tel"
+                  value={profileForm.phone}
+                  onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <button

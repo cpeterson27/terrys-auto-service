@@ -15,6 +15,7 @@ import GalleryPage from './pages/GalleryPage';
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from './pages/ProfilePage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import CustomersPage from './pages/CustomersPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -56,6 +57,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="admin">
                 <ExpensesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <CustomersPage />
               </ProtectedRoute>
             }
           />

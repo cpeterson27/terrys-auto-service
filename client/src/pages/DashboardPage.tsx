@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/authStore';
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, DollarSign, FileText } from 'lucide-react';
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, Clock, DollarSign, FileText } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface DashboardStats {
@@ -22,6 +22,15 @@ interface Booking {
 }
 
 const SERVICE_TIME_ORDER = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+const BOOKABLE_DAYS = [
+  { value: 0, label: 'Sun', fullLabel: 'Sunday' },
+  { value: 1, label: 'Mon', fullLabel: 'Monday' },
+  { value: 2, label: 'Tue', fullLabel: 'Tuesday' },
+  { value: 3, label: 'Wed', fullLabel: 'Wednesday' },
+  { value: 4, label: 'Thu', fullLabel: 'Thursday' },
+  { value: 5, label: 'Fri', fullLabel: 'Friday' },
+  { value: 6, label: 'Sat', fullLabel: 'Saturday' },
+];
 
 const getDateKey = (date: Date | string) => {
   const parsedDate = typeof date === 'string' ? new Date(date) : date;
@@ -88,6 +97,7 @@ const DashboardPage: React.FC = () => {
   const [cancellationReason, setCancellationReason] = React.useState('');
   const [cancellationSaving, setCancellationSaving] = React.useState(false);
   const [availableServiceTimes, setAvailableServiceTimes] = React.useState<string[]>(SERVICE_TIME_ORDER);
+  const [bookableDays, setBookableDays] = React.useState<number[]>([1, 2, 3, 4, 5]);
   const [availabilityMessage, setAvailabilityMessage] = React.useState('');
   const [availabilitySaving, setAvailabilitySaving] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -115,6 +125,7 @@ const DashboardPage: React.FC = () => {
       try {
         const response = await api.get('/settings/availability');
         setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+        setBookableDays(response.data.bookableDays || [1, 2, 3, 4, 5]);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Could not load availability settings');
       }
@@ -194,14 +205,27 @@ const DashboardPage: React.FC = () => {
     ));
   };
 
+  const toggleBookableDay = (day: number) => {
+    setAvailabilityMessage('');
+    setBookableDays((currentDays) => (
+      currentDays.includes(day)
+        ? currentDays.filter((currentDay) => currentDay !== day)
+        : BOOKABLE_DAYS.map((bookableDay) => bookableDay.value).filter((bookableDay) => [...currentDays, day].includes(bookableDay))
+    ));
+  };
+
   const saveAvailability = async () => {
     setError('');
     setAvailabilityMessage('');
     setAvailabilitySaving(true);
 
     try {
-      const response = await api.patch('/settings/availability', { serviceTimes: availableServiceTimes });
+      const response = await api.patch('/settings/availability', {
+        serviceTimes: availableServiceTimes,
+        bookableDays,
+      });
       setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+      setBookableDays(response.data.bookableDays || [1, 2, 3, 4, 5]);
       setAvailabilityMessage('Bookable times updated.');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not save availability settings');
@@ -210,11 +234,17 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const adminFirstName = user?.name?.trim().split(/\s+/)[0] || 'Terry';
+  const readableDays = BOOKABLE_DAYS
+    .filter((day) => bookableDays.includes(day.value))
+    .map((day) => day.fullLabel)
+    .join(', ');
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.email}</p>
+        <p className="text-gray-600 mt-2">Welcome back, {adminFirstName}</p>
       </div>
 
       {error && (
@@ -268,8 +298,8 @@ const DashboardPage: React.FC = () => {
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Bookable Times</h2>
-            <p className="text-gray-600 mt-1">Choose which service times customers can request online.</p>
+            <h2 className="text-2xl font-bold">Online Booking Schedule</h2>
+            <p className="text-gray-600 mt-1">Choose the days and times customers can request appointments online.</p>
             {availabilityMessage && (
               <p className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
                 {availabilityMessage}
@@ -286,26 +316,68 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {SERVICE_TIME_ORDER.map((time) => {
-            const enabled = availableServiceTimes.includes(time);
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Calendar className="text-blue-600" size={20} />
+              <div>
+                <h3 className="font-bold text-gray-950">Bookable Days</h3>
+                <p className="text-sm text-gray-600">{readableDays || 'No days selected'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              {BOOKABLE_DAYS.map((day) => {
+                const enabled = bookableDays.includes(day.value);
 
-            return (
-              <button
-                key={time}
-                type="button"
-                onClick={() => toggleServiceTime(time)}
-                className={`rounded-lg border px-3 py-3 text-sm font-semibold ${
-                  enabled
-                    ? 'border-green-300 bg-green-50 text-green-800'
-                    : 'border-gray-200 bg-gray-50 text-gray-500'
-                }`}
-              >
-                {time}
-                <span className="block text-xs font-medium">{enabled ? 'Available' : 'Hidden'}</span>
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleBookableDay(day.value)}
+                    className={`rounded-lg border px-3 py-3 text-left ${
+                      enabled
+                        ? 'border-blue-300 bg-blue-50 text-blue-900'
+                        : 'border-gray-200 bg-gray-50 text-gray-500'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{day.label}</span>
+                    <span className="block text-xs">{enabled ? 'Taking requests' : 'Unavailable'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Clock className="text-blue-600" size={20} />
+              <div>
+                <h3 className="font-bold text-gray-950">Bookable Times</h3>
+                <p className="text-sm text-gray-600">{availableServiceTimes.length} time slot{availableServiceTimes.length === 1 ? '' : 's'} available on selected days.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {SERVICE_TIME_ORDER.map((time) => {
+                const enabled = availableServiceTimes.includes(time);
+
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => toggleServiceTime(time)}
+                    className={`rounded-lg border px-3 py-3 text-left ${
+                      enabled
+                        ? 'border-green-300 bg-green-50 text-green-900'
+                        : 'border-gray-200 bg-gray-50 text-gray-500'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{time}</span>
+                    <span className="block text-xs">{enabled ? 'Shown to customers' : 'Hidden'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 

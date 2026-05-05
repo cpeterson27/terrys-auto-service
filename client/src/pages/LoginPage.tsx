@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
 
@@ -32,16 +32,19 @@ const getEmailValidationError = (email: string) => {
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login } = useAuthStore();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot' | 'reset' | 'verifyHelp'>(
+    () => (searchParams.get('token') ? 'reset' : 'login')
+  );
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
 
   React.useEffect(() => {
     const state = location.state as { message?: string } | null;
@@ -69,9 +72,33 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      if (mode === 'forgot') {
+        const response = await api.post('/auth/forgot-password', { email });
+        setMessage(response.data.message || 'If an account exists for that email, a password reset link has been sent.');
+        return;
+      }
+
+      if (mode === 'verifyHelp') {
+        const response = await api.post('/auth/resend-verification', { email });
+        setMessage(response.data.message || 'Verification email sent. Please check your inbox.');
+        return;
+      }
+
+      if (mode === 'reset') {
+        const response = await api.post('/auth/reset-password', {
+          token: searchParams.get('token'),
+          password,
+        });
+        const { user, accessToken } = response.data;
+        login(user, accessToken);
+        setMessage(response.data.message || 'Password updated. Redirecting...');
+        setTimeout(() => navigate(user.role === 'admin' ? '/dashboard' : '/portal'), 900);
+        return;
+      }
+
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
       const response = await api.post(endpoint, {
-        ...(mode === 'signup' ? { name, phone } : {}),
+        ...(mode === 'signup' ? { name, phone, marketingOptIn } : {}),
         email,
         password,
       });
@@ -79,7 +106,7 @@ const LoginPage: React.FC = () => {
       if (mode === 'signup') {
         setMessage(response.data.message || 'Account created. Please check your email to verify your account.');
         setPassword('');
-        setMode('login');
+        setMode('verifyHelp');
         return;
       }
 
@@ -87,7 +114,17 @@ const LoginPage: React.FC = () => {
       login(user, accessToken);
       navigate(user.role === 'admin' ? '/dashboard' : '/portal');
     } catch (err: any) {
-      setError(err.response?.data?.error || `${mode === 'login' ? 'Login' : 'Signup'} failed`);
+      const fallbackError = mode === 'login'
+        ? 'Login failed'
+        : mode === 'signup'
+          ? 'Signup failed'
+          : mode === 'forgot'
+            ? 'Could not send reset email'
+            : mode === 'verifyHelp'
+              ? 'Could not send verification email'
+              : 'Could not reset password';
+
+      setError(err.response?.data?.error || fallbackError);
     } finally {
       setLoading(false);
     }
@@ -99,27 +136,20 @@ const LoginPage: React.FC = () => {
     setMessage('');
   };
 
-  const resendVerification = async () => {
-    setError('');
-    setMessage('');
-    setResendLoading(true);
-
-    try {
-      const response = await api.post('/auth/resend-verification', { email });
-      setMessage(response.data.message || 'Verification email sent. Please check your inbox.');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not resend verification email');
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-6">Terry's Auto Service</h1>
         <h2 className="text-xl font-semibold text-center mb-6 text-gray-700">
-          {mode === 'login' ? 'Login' : 'Create Account'}
+          {mode === 'signup'
+            ? 'Create Account'
+            : mode === 'forgot'
+              ? 'Reset Password'
+              : mode === 'reset'
+                ? 'Choose New Password'
+                : mode === 'verifyHelp'
+                  ? 'Verify Your Email'
+                  : 'Login'}
         </h2>
 
         {error && (
@@ -166,7 +196,8 @@ const LoginPage: React.FC = () => {
             </>
           )}
 
-          <div className="mb-4">
+          {mode !== 'reset' && (
+            <div className="mb-4">
             <label className="block text-gray-700 font-medium mb-2">Email</label>
             <input
               name="email"
@@ -183,9 +214,11 @@ const LoginPage: React.FC = () => {
                 Use an email you can open. We will send a verification link before the account can log in.
               </p>
             )}
-          </div>
+            </div>
+          )}
 
-          <div className="mb-6">
+          {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
+            <div className="mb-6">
             <label className="block text-gray-700 font-medium mb-2">Password</label>
             <input
               name="password"
@@ -197,32 +230,85 @@ const LoginPage: React.FC = () => {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               required
             />
-          </div>
+            </div>
+          )}
+
+          {mode === 'signup' && (
+            <label className="mb-6 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={(event) => setMarketingOptIn(event.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span>Yes, I want to receive deals, service reminders, and special offers from Terry's Auto Service.</span>
+            </label>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Please wait...' : mode === 'login' ? 'Login' : 'Sign Up'}
+            {loading
+              ? 'Please wait...'
+              : mode === 'login'
+                ? 'Login'
+                : mode === 'signup'
+                  ? 'Create Account'
+                  : mode === 'forgot'
+                    ? 'Send Reset Link'
+                    : mode === 'verifyHelp'
+                      ? 'Send Verification Email'
+                      : 'Update Password'}
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={toggleMode}
-          className="mt-4 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700"
-        >
-          {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login'}
-        </button>
+        {mode === 'login' || mode === 'signup' ? (
+          <button
+            type="button"
+            onClick={toggleMode}
+            className="mt-4 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setError('');
+              setMessage('');
+            }}
+            className="mt-4 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            Back to login
+          </button>
+        )}
         {mode === 'login' && (
           <button
             type="button"
-            onClick={resendVerification}
-            disabled={resendLoading || !email}
-            className="mt-3 w-full text-center text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            onClick={() => {
+              setMode('forgot');
+              setError('');
+              setMessage('');
+            }}
+            className="mt-3 w-full text-center text-sm font-medium text-gray-600 hover:text-gray-900"
           >
-            {resendLoading ? 'Sending...' : 'Resend verification email'}
+            Forgot your password?
+          </button>
+        )}
+        {mode === 'signup' && (
+          <button
+            type="button"
+            onClick={() => {
+              setMode('verifyHelp');
+              setError('');
+              setMessage('');
+            }}
+            className="mt-3 w-full text-center text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Need a new verification email?
           </button>
         )}
       </div>

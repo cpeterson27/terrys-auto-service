@@ -1,10 +1,13 @@
 import React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login } = useAuthStore();
   const [status, setStatus] = React.useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = React.useState('Verifying your email...');
 
@@ -20,8 +23,11 @@ const VerifyEmailPage: React.FC = () => {
 
       try {
         const response = await api.get('/auth/verify-email', { params: { token } });
+        const { user, accessToken } = response.data;
+        login(user, accessToken);
         setStatus('success');
-        setMessage(response.data.message || 'Your email has been verified. You can now log in.');
+        setMessage(response.data.message || 'Your email has been verified. Redirecting...');
+        setTimeout(() => navigate(user.role === 'admin' ? '/dashboard' : '/portal'), 1200);
       } catch (err: any) {
         setStatus('error');
         setMessage(err.response?.data?.error || 'This verification link is invalid or expired.');
@@ -29,7 +35,7 @@ const VerifyEmailPage: React.FC = () => {
     };
 
     verifyEmail();
-  }, [searchParams]);
+  }, [login, navigate, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -45,12 +51,14 @@ const VerifyEmailPage: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-gray-950">Email Verification</h1>
         <p className="mt-3 text-gray-600">{message}</p>
-        <Link
-          to="/login"
-          className="mt-6 inline-flex w-full justify-center rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-        >
-          Go to Login
-        </Link>
+        {status === 'error' && (
+          <Link
+            to="/login"
+            className="mt-6 inline-flex w-full justify-center rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+          >
+            Go to Login
+          </Link>
+        )}
       </div>
     </div>
   );

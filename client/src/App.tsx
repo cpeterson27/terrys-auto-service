@@ -31,6 +31,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<LoginPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Protected Routes */}

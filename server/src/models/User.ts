@@ -45,6 +45,14 @@ const userSchema: Schema = new Schema(
       type: Date,
       default: null,
     },
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
     accountDeleted: {
       type: Boolean,
       default: false,
@@ -54,7 +62,17 @@ const userSchema: Schema = new Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (_doc, ret) => {
+        delete ret.password;
+        delete ret.emailVerificationToken;
+        delete ret.passwordResetToken;
+        return ret;
+      },
+    },
+  }
 );
 
 // Hash password before saving

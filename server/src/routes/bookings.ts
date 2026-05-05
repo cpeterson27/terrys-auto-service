@@ -8,7 +8,7 @@ import {
   customerBookingCancellationTemplate,
   sendEmail,
 } from '../utils/emailService';
-import { getServiceTimes } from './settings';
+import { getAvailabilitySettings } from './settings';
 
 const router = Router();
 
@@ -33,8 +33,13 @@ const isPastServiceDate = (date: Date) => {
 };
 
 const getAvailabilityForDate = async (dateValue: string) => {
-  const serviceTimes = await getServiceTimes();
+  const { serviceTimes, bookableDays } = await getAvailabilitySettings();
   const { date, nextDate } = getDateRange(dateValue);
+
+  if (!bookableDays.includes(date.getUTCDay())) {
+    return [];
+  }
+
   const occupiedBookings = await Booking.find({
     serviceDate: { $gte: date, $lt: nextDate },
     status: { $ne: 'cancelled' },
@@ -110,7 +115,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
       return res.status(400).json({ error: 'Date, time, vehicle, and service description are required' });
     }
 
-    const serviceTimes = await getServiceTimes();
+    const { serviceTimes, bookableDays } = await getAvailabilitySettings();
 
     if (!serviceTimes.includes(serviceTime)) {
       return res.status(400).json({ error: 'Please select an available service time' });
@@ -120,6 +125,10 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 
     if (isPastServiceDate(date)) {
       return res.status(400).json({ error: 'Please choose a future service date' });
+    }
+
+    if (!bookableDays.includes(date.getUTCDay())) {
+      return res.status(400).json({ error: 'Terry is not taking online appointments that day. Please choose another day.' });
     }
 
     const existingBooking = await Booking.findOne({

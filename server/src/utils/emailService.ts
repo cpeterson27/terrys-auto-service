@@ -151,3 +151,28 @@ export const emailVerificationTemplate = (
     </div>
   `;
 };
+
+export const passwordResetTemplate = (
+  customerName: string,
+  resetUrl: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Reset your password</h2>
+      <p>Hi ${customerName},</p>
+      <p>We received a request to reset the password for your Terry's Auto Service account.</p>
+      <p>
+        <a href="${resetUrl}" style="background: #2563eb; color: #ffffff; display: inline-block; padding: 12px 18px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Reset Password
+        </a>
+      </p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p style="word-break: break-all;">${resetUrl}</p>
+      <p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};

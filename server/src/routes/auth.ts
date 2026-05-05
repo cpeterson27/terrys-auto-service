@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { AuthRequest, authMiddleware, generateTokens } from '../middleware/auth';
-import { emailVerificationTemplate, sendEmail } from '../utils/emailService';
+import { emailVerificationTemplate, passwordResetTemplate, sendEmail } from '../utils/emailService';
+import { subscribeProfileToKlaviyo } from '../utils/klaviyo';
 
 const router = Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -43,6 +44,11 @@ const createVerificationToken = () => ({
   expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
 });
 
+const createPasswordResetToken = () => ({
+  token: crypto.randomBytes(32).toString('hex'),
+  expires: new Date(Date.now() + 60 * 60 * 1000),
+});
+
 const getPublicUser = (user: any) => ({
   userId: user._id.toString(),
   email: user.email,
@@ -67,9 +73,24 @@ const sendVerificationEmail = async (user: any) => {
   );
 };
 
+const sendPasswordResetEmail = async (user: any) => {
+  const { token, expires } = createPasswordResetToken();
+
+  user.passwordResetToken = token;
+  user.passwordResetExpires = expires;
+  await user.save();
+
+  const resetUrl = `${getFrontendUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+  await sendEmail(
+    user.email,
+    'Reset your Terry Auto Service password',
+    passwordResetTemplate(user.name || user.email, resetUrl)
+  );
+};
+
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, name, phone } = req.body;
+    const { email, password, name, phone, marketingOptIn } = req.body;
 
     if (!email || !password || !name || !phone) {
       return res.status(400).json({ error: 'Name, email, cell phone, and password are required' });
@@ -109,6 +130,16 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       console.error('Verification email failed during registration:', emailError);
       return res.status(502).json({
         error: 'We could not send a verification email to that address. Please check the email and try again.',
+      });
+    }
+
+    if (marketingOptIn === true) {
+      subscribeProfileToKlaviyo({
+        email: user.email,
+        name: user.name,
+        phone: user.phone || undefined,
+      }).catch((klaviyoError) => {
+        console.error('Klaviyo subscription failed during registration:', klaviyoError);
       });
     }
 
@@ -171,7 +202,13 @@ router.get('/verify-email', async (req: Request, res: Response, next: NextFuncti
     user.emailVerificationExpires = null;
     await user.save();
 
-    res.json({ message: 'Your email has been verified. You can now log in.' });
+    const tokens = generateTokens(user._id.toString(), user.email, user.role);
+
+    res.json({
+      message: 'Your email has been verified. Redirecting...',
+      user: getPublicUser(user),
+      ...tokens,
+    });
   } catch (error) {
     next(error);
   }
@@ -192,11 +229,69 @@ router.post('/resend-verification', async (req: Request, res: Response, next: Ne
     }
 
     if (user.emailVerified) {
-      return res.json({ message: 'This email is already verified. You can log in.' });
+      return res.json({ message: 'This email is already verified. If you cannot log in, use Forgot password.' });
     }
 
     await sendVerificationEmail(user);
     res.json({ message: 'Verification email sent. Please check your inbox.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: normalizeEmail(email) });
+
+    if (user && !user.accountDeleted) {
+      await sendPasswordResetEmail(user);
+    }
+
+    res.json({ message: 'If an account exists for that email, a password reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Reset token and new password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() },
+    });
+
+    if (!user || user.accountDeleted) {
+      return res.status(400).json({ error: 'Password reset link is invalid or expired' });
+    }
+
+    user.password = password;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    const tokens = generateTokens(user._id.toString(), user.email, user.role);
+
+    res.json({
+      message: 'Password updated. Redirecting...',
+      user: getPublicUser(user),
+      ...tokens,
+    });
   } catch (error) {
     next(error);
   }

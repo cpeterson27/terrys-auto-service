@@ -155,6 +155,8 @@ const DashboardPage: React.FC = () => {
   const [allBookings, setAllBookings] = React.useState<Booking[]>([]);
   const [calendarMonth, setCalendarMonth] = React.useState(() => new Date());
   const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
+  const [bookingToDelete, setBookingToDelete] = React.useState<Booking | null>(null);
+  const [deleteBookingLoading, setDeleteBookingLoading] = React.useState(false);
   const [cancellationBooking, setCancellationBooking] = React.useState<Booking | null>(null);
   const [cancellationReason, setCancellationReason] = React.useState('');
   const [cancellationSaving, setCancellationSaving] = React.useState(false);
@@ -298,6 +300,26 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const deleteBooking = async () => {
+    if (!bookingToDelete) {
+      return;
+    }
+
+    setError('');
+    setDeleteBookingLoading(true);
+
+    try {
+      await api.delete(`/bookings/${bookingToDelete._id}`);
+      setBookingToDelete(null);
+      setSelectedBooking(null);
+      await loadStats();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not delete appointment');
+    } finally {
+      setDeleteBookingLoading(false);
+    }
+  };
+
   const sortedBookings = React.useMemo(() => sortBookings(allBookings), [allBookings]);
   const calendarBookingsByDay = React.useMemo(() => {
     const groups = new Map<string, Booking[]>();
@@ -368,6 +390,11 @@ const DashboardPage: React.FC = () => {
   const todayBookings = activeBookings.filter((booking) => getDateKey(booking.serviceDate) === todayKey);
   const nextBookings = activeBookings.filter((booking) => getDateKey(booking.serviceDate) >= todayKey).slice(0, 6);
   const customerName = (booking: Booking) => booking.customerId?.name || booking.customerId?.email || 'Customer';
+  const customerEmail = (booking: Booking) => booking.customerId?.email || '';
+  const customerCanBeContacted = (booking: Booking) => {
+    const email = customerEmail(booking);
+    return email && !email.endsWith('@deleted.local');
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -685,21 +712,25 @@ const DashboardPage: React.FC = () => {
 
             <div className="space-y-5 px-6 py-5">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-gray-200 p-4">
+                <div className="rounded-lg border border-gray-200 p-4 min-w-0">
                   <div className="mb-2 flex items-center gap-2 text-gray-500">
                     <Clock size={18} />
                     <p className="text-xs font-semibold uppercase">Time</p>
                   </div>
                   <p className="font-semibold text-gray-950">{selectedBooking.serviceTime}</p>
                 </div>
-                <div className="rounded-lg border border-gray-200 p-4">
+                <div className="rounded-lg border border-gray-200 p-4 min-w-0">
                   <div className="mb-2 flex items-center gap-2 text-gray-500">
                     <User size={18} />
                     <p className="text-xs font-semibold uppercase">Customer</p>
                   </div>
-                  <p className="font-semibold text-gray-950">{customerName(selectedBooking)}</p>
-                  {selectedBooking.customerId?.email && (
-                    <p className="text-sm text-gray-600">{selectedBooking.customerId.email}</p>
+                  <p className="font-semibold text-gray-950 break-words">{customerName(selectedBooking)}</p>
+                  {customerCanBeContacted(selectedBooking) ? (
+                    <a href={`mailto:${customerEmail(selectedBooking)}`} className="block break-all text-sm text-blue-700 hover:text-blue-800">
+                      {customerEmail(selectedBooking)}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-gray-500">Customer profile was deleted. Contact details are no longer available.</p>
                   )}
                 </div>
                 <div className="rounded-lg border border-gray-200 p-4">
@@ -771,7 +802,51 @@ const DashboardPage: React.FC = () => {
                     Cancel and Email Customer
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setBookingToDelete(selectedBooking)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Delete Appointment
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bookingToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Delete appointment</p>
+            <h2 className="mt-1 text-2xl font-bold text-gray-950">Remove this appointment?</h2>
+            <p className="mt-2 text-gray-600">
+              This removes the appointment from Terry’s calendar. Use this for test records or entries Terry no longer needs to keep.
+            </p>
+            <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="font-semibold text-gray-950">{customerName(bookingToDelete)}</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {formatDate(bookingToDelete.serviceDate)} at {bookingToDelete.serviceTime}
+              </p>
+              <p className="text-sm text-gray-600">{bookingToDelete.vehicleInfo}</p>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setBookingToDelete(null)}
+                disabled={deleteBookingLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Appointment
+              </button>
+              <button
+                type="button"
+                onClick={deleteBooking}
+                disabled={deleteBookingLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteBookingLoading ? 'Deleting...' : 'Delete Appointment'}
+              </button>
             </div>
           </div>
         </div>

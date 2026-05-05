@@ -73,9 +73,18 @@ const Navbar: React.FC = () => {
               </>
             ) : (
               <>
-                <Link to="/portal" className="text-gray-600 hover:text-gray-900">
-                  My Invoices
+                <Link to="/" className="text-gray-600 hover:text-gray-900">
+                  Home
                 </Link>
+                <a href="/#services" className="text-gray-600 hover:text-gray-900">
+                  Services
+                </a>
+                <a href="/#work" className="text-gray-600 hover:text-gray-900">
+                  Work
+                </a>
+                <a href="/#contact" className="text-gray-600 hover:text-gray-900">
+                  Contact
+                </a>
                 <Link to="/bookings" className="text-gray-600 hover:text-gray-900">
                   Book Appointment
                 </Link>
@@ -164,12 +173,33 @@ const Navbar: React.FC = () => {
             ) : (
               <>
                 <Link
-                  to="/portal"
+                  to="/"
                   className="block text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  My Invoices
+                  Home
                 </Link>
+                <a
+                  href="/#services"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Services
+                </a>
+                <a
+                  href="/#work"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Work
+                </a>
+                <a
+                  href="/#contact"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Contact
+                </a>
                 <Link
                   to="/bookings"
                   className="block text-gray-600 hover:text-gray-900"

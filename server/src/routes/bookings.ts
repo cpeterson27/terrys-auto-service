@@ -295,6 +295,20 @@ router.patch('/:id/reschedule', adminMiddleware, async (req: AuthRequest, res: R
   }
 });
 
+router.delete('/:id', adminMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const booking = await Booking.findByIdAndDelete(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    res.json({ message: 'Appointment deleted.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch('/:id', adminMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { status, reason } = req.body;

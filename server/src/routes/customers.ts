@@ -51,4 +51,27 @@ router.get('/', adminMiddleware, async (_req: AuthRequest, res: Response, next: 
   }
 });
 
+router.delete('/:id', adminMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customer = await User.findOne({
+      _id: req.params.id,
+      role: 'customer',
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    await Promise.all([
+      Booking.deleteMany({ customerId: customer._id }),
+      Invoice.deleteMany({ customerId: customer._id }),
+      User.findByIdAndDelete(customer._id),
+    ]);
+
+    res.json({ message: 'Customer and related test records deleted.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

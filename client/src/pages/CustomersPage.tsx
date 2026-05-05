@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, Search, UserCheck } from 'lucide-react';
+import { Mail, Phone, Search, Trash2, UserCheck } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface Customer {
@@ -17,20 +17,22 @@ interface Customer {
 const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [search, setSearch] = React.useState('');
+  const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [error, setError] = React.useState('');
 
-  React.useEffect(() => {
-    const loadCustomers = async () => {
-      try {
-        const response = await api.get('/customers');
-        setCustomers(response.data.customers || []);
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Could not load customers');
-      }
-    };
-
-    loadCustomers();
+  const loadCustomers = React.useCallback(async () => {
+    try {
+      const response = await api.get('/customers');
+      setCustomers(response.data.customers || []);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not load customers');
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const filteredCustomers = React.useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -42,6 +44,25 @@ const CustomersPage: React.FC = () => {
       || (customer.phone || '').toLowerCase().includes(query)
     ));
   }, [customers, search]);
+
+  const deleteCustomer = async () => {
+    if (!customerToDelete) {
+      return;
+    }
+
+    setError('');
+    setDeleteLoading(true);
+
+    try {
+      await api.delete(`/customers/${customerToDelete._id}`);
+      setCustomerToDelete(null);
+      await loadCustomers();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not delete customer');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -94,12 +115,13 @@ const CustomersPage: React.FC = () => {
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Contact</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Activity</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Joined</th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                   No customers found.
                 </td>
               </tr>
@@ -141,11 +163,56 @@ const CustomersPage: React.FC = () => {
                 <td className="px-6 py-4 text-sm text-gray-700">
                   {customer.createdAt ? formatDate(customer.createdAt) : 'Unknown'}
                 </td>
+                <td className="px-6 py-4 text-right text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerToDelete(customer)}
+                    className="inline-flex items-center justify-end gap-1 rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {customerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Delete customer</p>
+            <h2 className="mt-1 text-2xl font-bold text-gray-950">Remove this customer?</h2>
+            <p className="mt-2 text-gray-600">
+              This deletes the customer login and related appointments/invoices. Use this for test accounts or records Terry intentionally wants removed.
+            </p>
+            <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="font-semibold text-gray-950">{customerToDelete.name}</p>
+              <p className="break-all text-sm text-gray-600">{customerToDelete.email}</p>
+              {customerToDelete.phone && <p className="text-sm text-gray-600">{customerToDelete.phone}</p>}
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCustomerToDelete(null)}
+                disabled={deleteLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Customer
+              </button>
+              <button
+                type="button"
+                onClick={deleteCustomer}
+                disabled={deleteLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

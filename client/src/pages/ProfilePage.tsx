@@ -1,8 +1,25 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, User } from 'lucide-react';
-import { api } from '../lib/api';
+import { Calendar, FileText, KeyRound, User } from 'lucide-react';
+import { api, formatCurrency, formatDate } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
+
+interface CustomerBooking {
+  _id: string;
+  serviceDate: string;
+  serviceTime: string;
+  vehicleInfo: string;
+  description?: string;
+  status: string;
+}
+
+interface CustomerInvoice {
+  _id: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  status: string;
+  dueDate: string;
+}
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +42,8 @@ const ProfilePage: React.FC = () => {
   const [deletePassword, setDeletePassword] = React.useState('');
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const isCustomer = user?.role === 'customer';
+  const [customerBookings, setCustomerBookings] = React.useState<CustomerBooking[]>([]);
+  const [customerInvoices, setCustomerInvoices] = React.useState<CustomerInvoice[]>([]);
 
   React.useEffect(() => {
     const loadProfile = async () => {
@@ -44,6 +63,27 @@ const ProfilePage: React.FC = () => {
 
     loadProfile();
   }, [setUser]);
+
+  React.useEffect(() => {
+    if (!isCustomer) {
+      return;
+    }
+
+    const loadCustomerRecords = async () => {
+      try {
+        const [bookingResponse, invoiceResponse] = await Promise.all([
+          api.get('/bookings'),
+          api.get('/invoices'),
+        ]);
+        setCustomerBookings(bookingResponse.data.bookings || []);
+        setCustomerInvoices(invoiceResponse.data.invoices || []);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Could not load your appointments and invoices');
+      }
+    };
+
+    loadCustomerRecords();
+  }, [isCustomer]);
 
   const submitProfile = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -125,6 +165,66 @@ const ProfilePage: React.FC = () => {
       {message && (
         <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
           {message}
+        </div>
+      )}
+
+      {isCustomer && (
+        <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="mb-5 flex items-center gap-3">
+              <Calendar className="text-blue-600" size={26} />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-950">Your Appointments</h2>
+                <p className="text-sm text-gray-600">Appointments you have booked with Terry.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {customerBookings.length === 0 ? (
+                <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">No appointments booked yet.</p>
+              ) : customerBookings.map((booking) => (
+                <div key={booking._id} className="rounded-lg border border-gray-200 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-950">{formatDate(booking.serviceDate)} at {booking.serviceTime}</p>
+                      <p className="mt-1 text-sm text-gray-600">{booking.vehicleInfo}</p>
+                      {booking.description && <p className="text-sm text-gray-600">{booking.description}</p>}
+                    </div>
+                    <span className="w-fit rounded bg-gray-100 px-2 py-1 text-sm font-semibold capitalize text-gray-700">
+                      {booking.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="mb-5 flex items-center gap-3">
+              <FileText className="text-blue-600" size={26} />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-950">Your Invoices</h2>
+                <p className="text-sm text-gray-600">Invoice records connected to your account.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {customerInvoices.length === 0 ? (
+                <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">No invoices available yet.</p>
+              ) : customerInvoices.map((invoice) => (
+                <div key={invoice._id} className="rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-950">{invoice.invoiceNumber}</p>
+                      <p className="mt-1 text-sm text-gray-600">Due {formatDate(invoice.dueDate)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-950">{formatCurrency(invoice.totalAmount)}</p>
+                      <p className="text-sm capitalize text-gray-600">{invoice.status}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

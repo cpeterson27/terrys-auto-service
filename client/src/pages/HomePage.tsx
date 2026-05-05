@@ -53,11 +53,11 @@ const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
 };
 
 const services = [
-  'Diagnostics and repair',
+  'Diagnostics',
   'Brake service',
-  'Oil changes and maintenance',
+  'Oil changes',
   'Suspension and steering',
-  'Customer vehicle inspections',
+  'Vehicle inspections',
 ];
 
 const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -176,15 +176,15 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <main>
-        <section className="bg-white">
-          <div className="container mx-auto py-16 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+        <section className="border-b border-gray-200 bg-white">
+          <div className="container mx-auto grid grid-cols-1 items-center gap-10 py-14 lg:grid-cols-[minmax(0,1fr)_460px]">
             <div>
-              <p className="text-blue-700 font-semibold mb-3">Local auto repair and service</p>
-              <h1 className="text-5xl font-bold text-gray-950 leading-tight mb-5">
-                Terry's Auto Service
+              <p className="text-blue-700 font-semibold mb-3">Independent auto mechanic</p>
+              <h1 className="mb-5 text-5xl font-bold leading-tight text-gray-950">
+                Practical vehicle service from Terry
               </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Reliable vehicle service with clear communication, practical repairs, and work Terry is proud to stand behind.
+              <p className="mb-8 max-w-2xl text-xl text-gray-600">
+                Appointment-based repair and maintenance for everyday drivers who want clear answers, honest scheduling, and dependable work.
               </p>
               {(hoursText || availability?.businessPhone) && (
                 <div className="mb-8 grid gap-3 text-gray-700 sm:grid-cols-2">
@@ -216,17 +216,17 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-gray-900 text-white rounded-lg p-8 min-h-[360px]">
+            <div className="rounded-lg bg-gray-950 p-7 text-white shadow-lg">
               <div>
-                <ShieldCheck size={44} className="text-blue-300 mb-6" />
-                <h2 className="text-3xl font-bold mb-4">Reliable service, clearly handled</h2>
+                <ShieldCheck size={40} className="mb-5 text-blue-300" />
+                <h2 className="mb-3 text-2xl font-bold">What to expect</h2>
                 <p className="text-gray-300">
-                  From routine maintenance to repair work, Terry keeps the process simple: explain the issue, do dependable work, and treat every vehicle with respect.
+                  Terry reviews service requests before adding them to the schedule, then follows up with practical next steps for your vehicle.
                 </p>
               </div>
-              <div className="space-y-4 mt-10">
+              <div className="mt-8 space-y-3">
                 {trustPoints.map((point) => (
-                  <div key={point.title} className="flex gap-4 border border-white/15 rounded-lg p-4">
+                  <div key={point.title} className="flex gap-4 rounded-lg border border-white/15 p-4">
                     <div className="text-blue-300 flex-shrink-0">{point.icon}</div>
                     <div>
                       <p className="font-semibold text-white">{point.title}</p>
@@ -240,10 +240,13 @@ const HomePage: React.FC = () => {
         </section>
 
         <section id="services" className="container mx-auto py-14">
-          <h2 className="text-3xl font-bold text-gray-950 mb-6">Services</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="mb-6 max-w-3xl">
+            <p className="mb-2 font-semibold text-blue-700">Services</p>
+            <h2 className="text-3xl font-bold text-gray-950">Repair and maintenance Terry can review with you</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
             {services.map((service) => (
-              <div key={service} className="bg-white rounded-lg shadow p-5 flex gap-3">
+              <div key={service} className="flex gap-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <CheckCircle className="text-green-600 flex-shrink-0" size={22} />
                 <p className="font-medium text-gray-800">{service}</p>
               </div>
@@ -254,8 +257,8 @@ const HomePage: React.FC = () => {
         <section id="work" className="container mx-auto py-14">
           <div className="flex items-end justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-gray-950">Featured Work</h2>
-              <p className="text-gray-600 mt-2">A look at service work, repairs, and projects from Terry's shop.</p>
+              <h2 className="text-3xl font-bold text-gray-950">Recent Shop Work</h2>
+              <p className="text-gray-600 mt-2">Photos and videos from jobs Terry has documented.</p>
             </div>
           </div>
 
@@ -312,7 +315,7 @@ const HomePage: React.FC = () => {
               <p className="text-blue-700 font-semibold mb-3">Contact</p>
               <h2 className="text-3xl font-bold text-gray-950 mb-4">Ask about service</h2>
               <p className="text-gray-600 text-lg">
-                Send a quick message about your vehicle, the service you need, or a question before booking.
+                Send your vehicle details, service question, or scheduling note. Terry can follow up directly.
               </p>
               <div className="mt-6 bg-white rounded-lg shadow p-5 flex gap-3">
                 <Mail className="text-blue-600 flex-shrink-0" size={24} />

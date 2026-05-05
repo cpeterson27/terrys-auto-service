@@ -4,6 +4,7 @@ import { GalleryItem } from '../models/GalleryItem';
 import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth';
 import {
   deleteGalleryMedia,
+  getCloudinaryErrorMessage,
   getVideoThumbnailUrl,
   isCloudinaryConfigured,
   UploadedGalleryFile,
@@ -113,7 +114,7 @@ router.post('/', (req: GalleryUploadRequest, res: Response, next: NextFunction) 
         uploadResult = await uploadGalleryMedia(req.file);
       } catch (error: any) {
         console.error('Cloudinary upload failed:', error);
-        return res.status(502).json({ error: error.message || 'Cloudinary upload failed' });
+        return res.status(502).json({ error: getCloudinaryErrorMessage(error) });
       }
 
       mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';

@@ -11,6 +11,7 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "seed:admin": "ts-node --files src/scripts/seedAdmin.ts",
+    "check:cloudinary": "ts-node --files src/scripts/checkCloudinary.ts",
     "smoke:api": "ts-node --files src/scripts/smokeApi.ts",
     "test:schemas": "ts-node --files src/scripts/testSchemas.ts",
     "lint": "eslint src --ext .ts"

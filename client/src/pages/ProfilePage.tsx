@@ -156,12 +156,13 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Phone</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Cell Phone</label>
               <input
                 type="tel"
                 value={profileForm.phone}
                 onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                required={user?.role === 'customer'}
               />
             </div>
           </div>

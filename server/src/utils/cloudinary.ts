@@ -10,14 +10,21 @@ export const isCloudinaryConfigured = () =>
 
 const configureCloudinary = () => {
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME?.trim(),
+    api_key: process.env.CLOUDINARY_API_KEY?.trim(),
+    api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
   });
-    // 🔥 TEMP TEST
-  cloudinary.api.ping()
-    .then(res => console.log("Cloudinary ping success:", res))
-    .catch(err => console.error("Cloudinary ping failed:", err));
+};
+
+export const getCloudinaryErrorMessage = (error: any) => {
+  const statusCode = error?.http_code || error?.statusCode || error?.status;
+  const rawMessage = String(error?.message || '');
+
+  if (statusCode === 401 || statusCode === 403 || rawMessage.includes('403')) {
+    return 'Cloudinary rejected the upload. Check that CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET on Render all come from the same Cloudinary product environment and have no extra spaces.';
+  }
+
+  return rawMessage || 'Cloudinary upload failed';
 };
 
 export const uploadGalleryMedia = (file: UploadedGalleryFile): Promise<UploadApiResponse> => {

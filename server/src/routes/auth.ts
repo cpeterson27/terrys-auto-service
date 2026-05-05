@@ -71,8 +71,8 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
   try {
     const { email, password, name, phone } = req.body;
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    if (!email || !password || !name || !phone) {
+      return res.status(400).json({ error: 'Name, email, cell phone, and password are required' });
     }
 
     const normalizedEmail = normalizeEmail(email);
@@ -97,7 +97,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       email: normalizedEmail,
       password,
       name: name.trim(),
-      phone,
+      phone: phone.trim(),
       role: 'customer',
       emailVerified: false,
     });
@@ -229,8 +229,12 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response,
       return res.status(400).json({ error: 'Name is required' });
     }
 
+    if (user.role === 'customer' && !phone?.trim()) {
+      return res.status(400).json({ error: 'Cell phone is required' });
+    }
+
     user.name = name.trim();
-    user.phone = phone || null;
+    user.phone = phone?.trim() || null;
 
     if (email) {
       const normalizedEmail = normalizeEmail(email);

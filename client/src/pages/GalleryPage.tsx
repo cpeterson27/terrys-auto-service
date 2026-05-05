@@ -62,6 +62,7 @@ const GalleryPage: React.FC = () => {
     published: true,
     featured: true,
   });
+  const [mediaPreviewUrl, setMediaPreviewUrl] = React.useState('');
   const [editForm, setEditForm] = React.useState({
     title: '',
     description: '',
@@ -85,6 +86,18 @@ const GalleryPage: React.FC = () => {
   }, [loadItems]);
 
   const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
+
+  React.useEffect(() => {
+    if (!form.mediaFile) {
+      setMediaPreviewUrl('');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(form.mediaFile);
+    setMediaPreviewUrl(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [form.mediaFile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,17 +276,36 @@ const GalleryPage: React.FC = () => {
               }}
               onDragLeave={() => setIsDraggingFile(false)}
               onDrop={handleDrop}
-              className={`flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${
+              className={`flex min-h-[180px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed text-center transition ${
                 isDraggingFile
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
             >
-              <Upload className="mb-3 text-blue-600" size={28} />
-              <span className="font-medium text-gray-900">
-                {form.mediaFile ? form.mediaFile.name : 'Drop a file here or click to choose'}
-              </span>
-              <span className="mt-1 text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
+              {form.mediaFile && mediaPreviewUrl ? (
+                <div className="grid w-full grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.8fr)]">
+                  <div className="aspect-video bg-gray-950">
+                    {form.mediaFile.type.startsWith('video/') ? (
+                      <video src={mediaPreviewUrl} controls className="h-full w-full object-contain" />
+                    ) : (
+                      <img src={mediaPreviewUrl} alt="Selected upload preview" className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-center p-5 text-left">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Preview</p>
+                    <p className="mt-2 break-words font-semibold text-gray-950">{form.title || form.mediaFile.name}</p>
+                    <p className="mt-1 text-sm text-gray-600">{form.category || 'Auto Service'}</p>
+                    {form.description && <p className="mt-3 line-clamp-3 text-sm text-gray-600">{form.description}</p>}
+                    <p className="mt-4 text-sm text-gray-500">Click or drop another file to replace it.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-8">
+                  <Upload className="mx-auto mb-3 text-blue-600" size={28} />
+                  <span className="font-medium text-gray-900">Drop a file here or click to choose</span>
+                  <span className="mt-1 block text-sm text-gray-500">Images and videos upload directly to Cloudinary.</span>
+                </div>
+              )}
               <input
                 ref={fileInputRef}
                 name="media"

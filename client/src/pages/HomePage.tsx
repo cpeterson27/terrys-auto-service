@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle, Clock, Image, LayoutDashboard, Mail, PlayCircle, ShieldCheck, Wrench } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Image, LayoutDashboard, Mail, PlayCircle, ShieldCheck, Wrench, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -66,6 +66,7 @@ const trustPoints = [
 const HomePage: React.FC = () => {
   const { user } = useAuthStore();
   const [items, setItems] = React.useState<GalleryItem[]>([]);
+  const [selectedWork, setSelectedWork] = React.useState<GalleryItem | null>(null);
   const [contactForm, setContactForm] = React.useState({
     name: '',
     email: '',
@@ -195,14 +196,25 @@ const HomePage: React.FC = () => {
                   <h3 className="text-2xl font-bold text-gray-950 mb-4">{group.category}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {group.items.map((item) => (
-                      <article key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
-                        <div className="aspect-video bg-gray-100">
-                          {item.mediaType === 'image' ? (
-                            <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <video src={item.mediaUrl} poster={item.thumbnailUrl} controls className="w-full h-full object-cover" />
-                          )}
-                        </div>
+                      <article key={item._id} className="overflow-hidden rounded-lg bg-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedWork(item)}
+                          className="block w-full text-left"
+                        >
+                          <div className="group relative aspect-video bg-gray-100">
+                            {item.mediaType === 'image' ? (
+                              <img src={item.mediaUrl} alt={item.title} className="h-full w-full object-cover" />
+                            ) : (
+                              <img src={item.thumbnailUrl || item.mediaUrl} alt={item.title} className="h-full w-full object-cover" />
+                            )}
+                            <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/55 via-black/0 to-transparent opacity-100">
+                              <span className="m-4 rounded bg-white/95 px-3 py-2 text-sm font-semibold text-gray-950 shadow">
+                                View Details
+                              </span>
+                            </div>
+                          </div>
+                        </button>
                         <div className="p-5">
                           <div className="flex items-center gap-2 text-sm text-blue-700 font-medium mb-2">
                             {item.mediaType === 'video' ? <PlayCircle size={16} /> : <Image size={16} />}
@@ -210,6 +222,13 @@ const HomePage: React.FC = () => {
                           </div>
                           <h4 className="font-bold text-lg text-gray-950">{item.title}</h4>
                           {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedWork(item)}
+                            className="mt-4 text-sm font-semibold text-blue-700 hover:text-blue-800"
+                          >
+                            Open larger view
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -315,6 +334,53 @@ const HomePage: React.FC = () => {
           </div>
         </section>
       </main>
+
+      {selectedWork && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+          <div className="max-h-full w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-blue-700">{getCategory(selectedWork.category)}</p>
+                <h2 className="text-2xl font-bold text-gray-950">{selectedWork.title}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedWork(null)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                aria-label="Close work details"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="grid max-h-[calc(100vh-9rem)] grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="bg-gray-950">
+                {selectedWork.mediaType === 'image' ? (
+                  <img src={selectedWork.mediaUrl} alt={selectedWork.title} className="max-h-[72vh] w-full object-contain" />
+                ) : (
+                  <video src={selectedWork.mediaUrl} poster={selectedWork.thumbnailUrl} controls className="max-h-[72vh] w-full bg-black" />
+                )}
+              </div>
+              <div className="p-6">
+                <div className="mb-4 flex items-center gap-2 text-blue-700">
+                  {selectedWork.mediaType === 'video' ? <PlayCircle size={18} /> : <Image size={18} />}
+                  <span className="text-sm font-semibold">{selectedWork.mediaType === 'video' ? 'Shop Video' : 'Shop Photo'}</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-950">{selectedWork.title}</h3>
+                <p className="mt-3 text-gray-600">
+                  {selectedWork.description || 'Service work from Terry\'s shop.'}
+                </p>
+                <Link
+                  to={primaryAction.to}
+                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+                >
+                  <Calendar size={18} />
+                  {primaryAction.label}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -6,6 +6,15 @@ export interface UploadedGalleryFile {
 }
 
 const getCloudinaryUrl = () => process.env.CLOUDINARY_URL?.trim();
+const getSeparateCloudinaryConfig = () => ({
+  apiKey: process.env.CLOUDINARY_API_KEY?.trim(),
+  apiSecret: process.env.CLOUDINARY_API_SECRET?.trim(),
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim(),
+});
+const hasSeparateCloudinaryConfig = () => {
+  const { apiKey, apiSecret, cloudName } = getSeparateCloudinaryConfig();
+  return Boolean(apiKey && apiSecret && cloudName);
+};
 const parseCloudinaryUrl = (cloudinaryUrl: string) => {
   const parsedUrl = new URL(cloudinaryUrl);
 
@@ -16,6 +25,12 @@ const parseCloudinaryUrl = (cloudinaryUrl: string) => {
   };
 };
 const getCloudinaryCloudName = () => {
+  const separateConfig = getSeparateCloudinaryConfig();
+
+  if (hasSeparateCloudinaryConfig()) {
+    return separateConfig.cloudName;
+  }
+
   const cloudinaryUrl = getCloudinaryUrl();
 
   if (cloudinaryUrl) {
@@ -27,11 +42,23 @@ const getCloudinaryCloudName = () => {
 
 export const isCloudinaryConfigured = () =>
   Boolean(
-    getCloudinaryUrl() ||
-    (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
+    hasSeparateCloudinaryConfig() ||
+    getCloudinaryUrl()
   );
 
 const configureCloudinary = () => {
+  const separateConfig = getSeparateCloudinaryConfig();
+
+  if (hasSeparateCloudinaryConfig()) {
+    cloudinary.config({
+      cloud_name: separateConfig.cloudName,
+      api_key: separateConfig.apiKey,
+      api_secret: separateConfig.apiSecret,
+      secure: true,
+    });
+    return;
+  }
+
   const cloudinaryUrl = getCloudinaryUrl();
 
   if (cloudinaryUrl) {
@@ -55,13 +82,16 @@ const configureCloudinary = () => {
 };
 
 export const getConfiguredCloudinaryName = () => getCloudinaryCloudName();
+export const getConfiguredCloudinarySource = () => (
+  hasSeparateCloudinaryConfig() ? 'separate CLOUDINARY_* variables' : 'CLOUDINARY_URL'
+);
 
 export const getCloudinaryErrorMessage = (error: any) => {
   const statusCode = error?.http_code || error?.statusCode || error?.status;
   const rawMessage = String(error?.message || '');
 
   if (statusCode === 401 || statusCode === 403 || rawMessage.includes('403')) {
-    return 'Cloudinary rejected the upload. Check that CLOUDINARY_URL on Render is copied exactly from the same Cloudinary product environment, with no quotes or extra spaces.';
+    return `Cloudinary rejected the upload using ${getConfiguredCloudinarySource()}. The API key is valid, but it may be missing upload/create permissions. In Cloudinary, edit or regenerate the API key and make sure it can create/upload assets.`;
   }
 
   return rawMessage || 'Cloudinary upload failed';

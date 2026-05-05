@@ -8,9 +8,9 @@ import {
   customerBookingCancellationTemplate,
   sendEmail,
 } from '../utils/emailService';
+import { getServiceTimes } from './settings';
 
 const router = Router();
-const SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
 
 router.use(authMiddleware);
 
@@ -33,6 +33,7 @@ const isPastServiceDate = (date: Date) => {
 };
 
 const getAvailabilityForDate = async (dateValue: string) => {
+  const serviceTimes = await getServiceTimes();
   const { date, nextDate } = getDateRange(dateValue);
   const occupiedBookings = await Booking.find({
     serviceDate: { $gte: date, $lt: nextDate },
@@ -40,7 +41,7 @@ const getAvailabilityForDate = async (dateValue: string) => {
   }).select('serviceTime status');
 
   const occupiedTimes = new Set(occupiedBookings.map((booking) => booking.serviceTime));
-  return SERVICE_TIMES.map((time) => ({
+  return serviceTimes.map((time) => ({
     time,
     available: !occupiedTimes.has(time),
   }));
@@ -109,7 +110,9 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
       return res.status(400).json({ error: 'Date, time, vehicle, and service description are required' });
     }
 
-    if (!SERVICE_TIMES.includes(serviceTime)) {
+    const serviceTimes = await getServiceTimes();
+
+    if (!serviceTimes.includes(serviceTime)) {
       return res.status(400).json({ error: 'Please select an available service time' });
     }
 

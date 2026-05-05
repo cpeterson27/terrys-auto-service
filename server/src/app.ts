@@ -9,6 +9,7 @@ import dashboardRoutes from './routes/dashboard';
 import expenseRoutes from './routes/expenses';
 import galleryRoutes from './routes/gallery';
 import invoiceRoutes from './routes/invoices';
+import settingsRoutes from './routes/settings';
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

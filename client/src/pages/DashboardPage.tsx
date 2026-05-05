@@ -87,6 +87,9 @@ const DashboardPage: React.FC = () => {
   const [cancellationBooking, setCancellationBooking] = React.useState<Booking | null>(null);
   const [cancellationReason, setCancellationReason] = React.useState('');
   const [cancellationSaving, setCancellationSaving] = React.useState(false);
+  const [availableServiceTimes, setAvailableServiceTimes] = React.useState<string[]>(SERVICE_TIME_ORDER);
+  const [availabilityMessage, setAvailabilityMessage] = React.useState('');
+  const [availabilitySaving, setAvailabilitySaving] = React.useState(false);
   const [error, setError] = React.useState('');
 
   const loadStats = React.useCallback(async () => {
@@ -106,6 +109,19 @@ const DashboardPage: React.FC = () => {
   React.useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  React.useEffect(() => {
+    const loadAvailability = async () => {
+      try {
+        const response = await api.get('/settings/availability');
+        setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Could not load availability settings');
+      }
+    };
+
+    loadAvailability();
+  }, []);
 
   const updateBookingStatus = async (bookingId: string, status: string, reason?: string) => {
     setError('');
@@ -169,6 +185,31 @@ const DashboardPage: React.FC = () => {
     setCalendarMonth((currentMonth) => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
   };
 
+  const toggleServiceTime = (time: string) => {
+    setAvailabilityMessage('');
+    setAvailableServiceTimes((currentTimes) => (
+      currentTimes.includes(time)
+        ? currentTimes.filter((currentTime) => currentTime !== time)
+        : SERVICE_TIME_ORDER.filter((serviceTime) => [...currentTimes, time].includes(serviceTime))
+    ));
+  };
+
+  const saveAvailability = async () => {
+    setError('');
+    setAvailabilityMessage('');
+    setAvailabilitySaving(true);
+
+    try {
+      const response = await api.patch('/settings/availability', { serviceTimes: availableServiceTimes });
+      setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+      setAvailabilityMessage('Bookable times updated.');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not save availability settings');
+    } finally {
+      setAvailabilitySaving(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -221,6 +262,50 @@ const DashboardPage: React.FC = () => {
             </div>
             <BarChart3 size={40} className="text-orange-500" />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Bookable Times</h2>
+            <p className="text-gray-600 mt-1">Choose which service times customers can request online.</p>
+            {availabilityMessage && (
+              <p className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {availabilityMessage}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={saveAvailability}
+            disabled={availabilitySaving}
+            className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {availabilitySaving ? 'Saving...' : 'Save Times'}
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {SERVICE_TIME_ORDER.map((time) => {
+            const enabled = availableServiceTimes.includes(time);
+
+            return (
+              <button
+                key={time}
+                type="button"
+                onClick={() => toggleServiceTime(time)}
+                className={`rounded-lg border px-3 py-3 text-sm font-semibold ${
+                  enabled
+                    ? 'border-green-300 bg-green-50 text-green-800'
+                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                }`}
+              >
+                {time}
+                <span className="block text-xs font-medium">{enabled ? 'Available' : 'Hidden'}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

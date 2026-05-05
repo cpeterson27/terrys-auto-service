@@ -11,7 +11,7 @@ interface Booking {
   status: string;
 }
 
-const SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+const DEFAULT_SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
 
 interface Slot {
   time: string;
@@ -26,9 +26,36 @@ interface DayAvailability {
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
+const getStatusClassName = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+    case 'confirmed':
+      return 'bg-green-50 text-green-800 border-green-200';
+    case 'completed':
+      return 'bg-blue-50 text-blue-800 border-blue-200';
+    case 'cancelled':
+      return 'bg-red-50 text-red-800 border-red-200';
+    default:
+      return 'bg-gray-50 text-gray-800 border-gray-200';
+  }
+};
+
+const getAppointmentNote = (status: string) => {
+  if (status === 'completed') {
+    return 'This appointment is complete.';
+  }
+
+  if (status === 'cancelled') {
+    return 'This appointment has already been cancelled.';
+  }
+
+  return '';
+};
+
 const BookingPage: React.FC = () => {
   const [bookings, setBookings] = React.useState<Booking[]>([]);
-  const [slots, setSlots] = React.useState<Slot[]>(SERVICE_TIMES.map((time) => ({ time, available: true })));
+  const [slots, setSlots] = React.useState<Slot[]>(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
   const [availabilityDays, setAvailabilityDays] = React.useState<DayAvailability[]>([]);
   const [form, setForm] = React.useState({
     serviceDate: '',
@@ -72,9 +99,9 @@ const BookingPage: React.FC = () => {
   }, [loadAvailabilityRange]);
 
   React.useEffect(() => {
-    const loadAvailability = async () => {
+      const loadAvailability = async () => {
       if (!form.serviceDate) {
-        setSlots(SERVICE_TIMES.map((time) => ({ time, available: true })));
+        setSlots(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
         return;
       }
 
@@ -105,7 +132,7 @@ const BookingPage: React.FC = () => {
     try {
       await api.post('/bookings', form);
       setForm({ serviceDate: '', serviceTime: '', vehicleInfo: '', description: '' });
-      setSlots(SERVICE_TIMES.map((time) => ({ time, available: true })));
+      setSlots(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
       setMessage('Appointment request sent. Terry will confirm it soon.');
       await loadBookings();
       await loadAvailabilityRange();
@@ -323,15 +350,20 @@ const BookingPage: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y">
-            {bookings.map((booking) => (
-              <div key={booking._id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
+            {bookings.map((booking) => {
+              const appointmentNote = getAppointmentNote(booking.status);
+
+              return (
+              <div key={booking._id} className="py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className={appointmentNote ? 'opacity-80' : ''}>
                   <p className="font-semibold">{formatDate(booking.serviceDate)} at {booking.serviceTime}</p>
                   <p className="text-sm text-gray-600">{booking.vehicleInfo}</p>
                   <p className="text-sm text-gray-600">{booking.description}</p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <span className="text-sm font-medium capitalize text-blue-700">{booking.status}</span>
+                <div className="flex flex-col gap-2 md:items-end">
+                  <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-sm font-semibold capitalize ${getStatusClassName(booking.status)}`}>
+                    {booking.status}
+                  </span>
                   {['pending', 'confirmed'].includes(booking.status) ? (
                     <button
                       type="button"
@@ -344,11 +376,12 @@ const BookingPage: React.FC = () => {
                       Cancel
                     </button>
                   ) : (
-                    <span className="text-sm text-gray-500">No action available</span>
+                    <span className="text-sm text-gray-500">{appointmentNote || 'No action available'}</span>
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

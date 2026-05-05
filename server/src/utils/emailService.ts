@@ -18,7 +18,7 @@ export const sendEmail = async (
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'noreply@terrysautoservice.com',
+        from: 'noreply@terrysauto.shop',
         to,
         subject,
         html,

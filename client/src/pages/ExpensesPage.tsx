@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Plus, Trash2 } from 'lucide-react';
+import { Download, Plus, Printer, Trash2 } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface Expense {
@@ -29,6 +29,7 @@ const ExpensesPage: React.FC = () => {
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [exportLoading, setExportLoading] = React.useState(false);
+  const [reportLoading, setReportLoading] = React.useState(false);
   const [form, setForm] = React.useState({
     description: '',
     category: '',
@@ -112,27 +113,51 @@ const ExpensesPage: React.FC = () => {
 
   const moneyValue = (amount: number | undefined) => Number(amount || 0).toFixed(2);
 
+  const escapeHtml = (value: string | number | undefined | null) => {
+    const replacements: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+
+    return String(value ?? '').replace(/[&<>"']/g, (character) => replacements[character]);
+  };
+
+  const loadTaxExportData = async () => {
+    const [expenseResponse, invoiceResponse] = await Promise.all([
+      api.get('/expenses'),
+      api.get('/invoices'),
+    ]);
+    const exportExpenses: Expense[] = expenseResponse.data.expenses || [];
+    const invoices: TaxInvoice[] = invoiceResponse.data.invoices || [];
+    const categoryTotals = exportExpenses.reduce<Record<string, number>>((totalsByCategory, expense) => {
+      const category = expense.category || 'Uncategorized';
+      return {
+        ...totalsByCategory,
+        [category]: (totalsByCategory[category] || 0) + expense.amount,
+      };
+    }, {});
+    const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid');
+    const totalExpenses = exportExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const paidRevenue = paidInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+
+    return {
+      categoryTotals,
+      exportExpenses,
+      invoices,
+      paidRevenue,
+      totalExpenses,
+    };
+  };
+
   const exportTaxCsv = async () => {
     setExportLoading(true);
     setError('');
 
     try {
-      const [expenseResponse, invoiceResponse] = await Promise.all([
-        api.get('/expenses'),
-        api.get('/invoices'),
-      ]);
-      const exportExpenses: Expense[] = expenseResponse.data.expenses || [];
-      const invoices: TaxInvoice[] = invoiceResponse.data.invoices || [];
-      const categoryTotals = exportExpenses.reduce<Record<string, number>>((totalsByCategory, expense) => {
-        const category = expense.category || 'Uncategorized';
-        return {
-          ...totalsByCategory,
-          [category]: (totalsByCategory[category] || 0) + expense.amount,
-        };
-      }, {});
-      const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid');
-      const totalExpenses = exportExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const paidRevenue = paidInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+      const { categoryTotals, exportExpenses, invoices, paidRevenue, totalExpenses } = await loadTaxExportData();
       const rows = [
         ['Terry Auto Service Tax Export'],
         ['Generated', new Date().toISOString()],
@@ -189,6 +214,193 @@ const ExpensesPage: React.FC = () => {
     }
   };
 
+  const printTaxReport = async () => {
+    setReportLoading(true);
+    setError('');
+
+    try {
+      const { categoryTotals, exportExpenses, invoices, paidRevenue, totalExpenses } = await loadTaxExportData();
+      const generatedDate = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(new Date());
+      const categoryRows = Object.entries(categoryTotals)
+        .sort(([firstCategory], [secondCategory]) => firstCategory.localeCompare(secondCategory))
+        .map(([category, total]) => `
+          <tr>
+            <td>${escapeHtml(category)}</td>
+            <td class="amount">${escapeHtml(formatCurrency(total))}</td>
+          </tr>
+        `)
+        .join('');
+      const expenseRows = exportExpenses
+        .map((expense) => `
+          <tr>
+            <td>${escapeHtml(formatDate(expense.date))}</td>
+            <td>${escapeHtml(expense.category)}</td>
+            <td>${escapeHtml(expense.description)}</td>
+            <td class="amount">${escapeHtml(formatCurrency(expense.amount))}</td>
+          </tr>
+        `)
+        .join('');
+      const invoiceRows = invoices
+        .map((invoice) => `
+          <tr>
+            <td>${escapeHtml(invoice.invoiceNumber)}</td>
+            <td>${escapeHtml(invoice.customerId?.name || invoice.customerId?.email || '')}</td>
+            <td>${escapeHtml(invoice.status)}</td>
+            <td>${escapeHtml(invoice.dueDate ? formatDate(invoice.dueDate) : '')}</td>
+            <td class="amount">${escapeHtml(formatCurrency(invoice.totalAmount))}</td>
+          </tr>
+        `)
+        .join('');
+      const reportHtml = `
+        <!doctype html>
+        <html>
+          <head>
+            <title>Terry's Auto Service Tax Report</title>
+            <style>
+              * { box-sizing: border-box; }
+              body {
+                color: #111827;
+                font-family: Arial, sans-serif;
+                line-height: 1.45;
+                margin: 0;
+                padding: 32px;
+              }
+              .header {
+                border-bottom: 2px solid #111827;
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+              }
+              h1 {
+                font-size: 28px;
+                margin: 0 0 6px;
+              }
+              h2 {
+                border-bottom: 1px solid #d1d5db;
+                font-size: 18px;
+                margin: 28px 0 12px;
+                padding-bottom: 6px;
+              }
+              p { margin: 0; }
+              .meta { color: #4b5563; }
+              .summary {
+                display: grid;
+                gap: 12px;
+                grid-template-columns: repeat(3, 1fr);
+                margin: 24px 0;
+              }
+              .summary-card {
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                padding: 14px;
+              }
+              .label {
+                color: #4b5563;
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: .04em;
+                text-transform: uppercase;
+              }
+              .value {
+                font-size: 22px;
+                font-weight: 800;
+                margin-top: 6px;
+              }
+              table {
+                border-collapse: collapse;
+                margin-bottom: 20px;
+                width: 100%;
+              }
+              th, td {
+                border-bottom: 1px solid #e5e7eb;
+                font-size: 12px;
+                padding: 8px;
+                text-align: left;
+                vertical-align: top;
+              }
+              th {
+                background: #f3f4f6;
+                font-size: 11px;
+                letter-spacing: .03em;
+                text-transform: uppercase;
+              }
+              .amount { text-align: right; white-space: nowrap; }
+              .note {
+                color: #4b5563;
+                font-size: 12px;
+                margin-top: 24px;
+              }
+              @media print {
+                body { padding: 20px; }
+                .summary { grid-template-columns: repeat(3, 1fr); }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Terry's Auto Service Tax Report</h1>
+              <p class="meta">Generated ${escapeHtml(generatedDate)}</p>
+            </div>
+
+            <div class="summary">
+              <div class="summary-card">
+                <p class="label">Total Expenses</p>
+                <p class="value">${escapeHtml(formatCurrency(totalExpenses))}</p>
+              </div>
+              <div class="summary-card">
+                <p class="label">Paid Invoice Revenue</p>
+                <p class="value">${escapeHtml(formatCurrency(paidRevenue))}</p>
+              </div>
+              <div class="summary-card">
+                <p class="label">Net Before Adjustments</p>
+                <p class="value">${escapeHtml(formatCurrency(paidRevenue - totalExpenses))}</p>
+              </div>
+            </div>
+
+            <h2>Expense Totals by Category</h2>
+            <table>
+              <thead><tr><th>Category</th><th class="amount">Total</th></tr></thead>
+              <tbody>${categoryRows || '<tr><td colspan="2">No expenses recorded.</td></tr>'}</tbody>
+            </table>
+
+            <h2>Expenses</h2>
+            <table>
+              <thead><tr><th>Date</th><th>Category</th><th>Description</th><th class="amount">Amount</th></tr></thead>
+              <tbody>${expenseRows || '<tr><td colspan="4">No expenses recorded.</td></tr>'}</tbody>
+            </table>
+
+            <h2>Invoices</h2>
+            <table>
+              <thead><tr><th>Invoice #</th><th>Customer</th><th>Status</th><th>Due Date</th><th class="amount">Total</th></tr></thead>
+              <tbody>${invoiceRows || '<tr><td colspan="5">No invoices recorded.</td></tr>'}</tbody>
+            </table>
+
+            <p class="note">Prepared from records stored in Terry's Auto Service dashboard. Review with a tax professional before filing.</p>
+          </body>
+        </html>
+      `;
+      const reportWindow = window.open('', '_blank');
+
+      if (!reportWindow) {
+        setError('Could not open the tax report. Please allow popups for this site and try again.');
+        return;
+      }
+
+      reportWindow.document.open();
+      reportWindow.document.write(reportHtml);
+      reportWindow.document.close();
+      reportWindow.focus();
+      reportWindow.print();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not create tax report');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
@@ -196,12 +408,21 @@ const ExpensesPage: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
+            onClick={printTaxReport}
+            disabled={reportLoading}
+            className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+          >
+            <Printer size={20} />
+            <span>{reportLoading ? 'Preparing...' : 'Print Tax Report'}</span>
+          </button>
+          <button
+            type="button"
             onClick={exportTaxCsv}
             disabled={exportLoading}
             className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
           >
             <Download size={20} />
-            <span>{exportLoading ? 'Exporting...' : 'Export Tax CSV'}</span>
+            <span>{exportLoading ? 'Exporting...' : 'Download CSV'}</span>
           </button>
           <button
             type="button"

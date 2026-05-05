@@ -99,3 +99,28 @@ export const bookingCancellationTemplate = (
     </div>
   `;
 };
+
+export const emailVerificationTemplate = (
+  customerName: string,
+  verificationUrl: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Verify your email</h2>
+      <p>Hi ${customerName},</p>
+      <p>Please confirm this email address for your Terry's Auto Service account.</p>
+      <p>
+        <a href="${verificationUrl}" style="background: #2563eb; color: #ffffff; display: inline-block; padding: 12px 18px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Verify Email
+        </a>
+      </p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p style="word-break: break-all;">${verificationUrl}</p>
+      <p>This link expires in 24 hours.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};

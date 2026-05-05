@@ -5,6 +5,9 @@ export interface IUser {
   name: string;
   phone?: string;
   role: 'admin' | 'customer';
+  emailVerified?: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

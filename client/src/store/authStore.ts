@@ -6,6 +6,7 @@ export interface AuthUser {
   name?: string;
   phone?: string;
   role: 'admin' | 'customer';
+  emailVerified?: boolean;
 }
 
 interface AuthStore {
@@ -64,5 +65,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: null, token: null });
   },
 
-  setUser: (user: AuthUser) => set({ user }),
+  setUser: (user: AuthUser) => {
+    if (!isAuthUser(user)) {
+      return;
+    }
+
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
 }));

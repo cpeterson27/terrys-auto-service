@@ -12,11 +12,14 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
@@ -27,9 +30,15 @@ const LoginPage: React.FC = () => {
         password,
       });
 
+      if (mode === 'signup') {
+        setMessage(response.data.message || 'Account created. Please check your email to verify your account.');
+        setPassword('');
+        setMode('login');
+        return;
+      }
+
       const { user, accessToken } = response.data;
       login(user, accessToken);
-
       navigate(user.role === 'admin' ? '/dashboard' : '/portal');
     } catch (err: any) {
       setError(err.response?.data?.error || `${mode === 'login' ? 'Login' : 'Signup'} failed`);
@@ -41,6 +50,22 @@ const LoginPage: React.FC = () => {
   const toggleMode = () => {
     setMode((currentMode) => (currentMode === 'login' ? 'signup' : 'login'));
     setError('');
+    setMessage('');
+  };
+
+  const resendVerification = async () => {
+    setError('');
+    setMessage('');
+    setResendLoading(true);
+
+    try {
+      const response = await api.post('/auth/resend-verification', { email });
+      setMessage(response.data.message || 'Verification email sent. Please check your inbox.');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not resend verification email');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -54,6 +79,11 @@ const LoginPage: React.FC = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
             {error}
+          </div>
+        )}
+        {message && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+            {message}
           </div>
         )}
 
@@ -133,6 +163,16 @@ const LoginPage: React.FC = () => {
         >
           {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login'}
         </button>
+        {mode === 'login' && (
+          <button
+            type="button"
+            onClick={resendVerification}
+            disabled={resendLoading || !email}
+            className="mt-3 w-full text-center text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+          >
+            {resendLoading ? 'Sending...' : 'Resend verification email'}
+          </button>
+        )}
       </div>
     </div>
   );

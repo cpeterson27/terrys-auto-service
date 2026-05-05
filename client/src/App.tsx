@@ -13,6 +13,8 @@ import InvoicesPage from './pages/InvoicesPage';
 import ExpensesPage from './pages/ExpensesPage';
 import GalleryPage from './pages/GalleryPage';
 import MessagesPage from './pages/MessagesPage';
+import ProfilePage from './pages/ProfilePage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -29,6 +31,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Protected Routes */}
           <Route
@@ -68,6 +71,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="admin">
                 <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

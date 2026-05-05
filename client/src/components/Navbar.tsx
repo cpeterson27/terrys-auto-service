@@ -64,6 +64,9 @@ const Navbar: React.FC = () => {
                 <Link to="/messages" className="text-gray-600 hover:text-gray-900">
                   Messages
                 </Link>
+                <Link to="/profile" className="text-gray-600 hover:text-gray-900">
+                  Profile
+                </Link>
               </>
             ) : (
               <>
@@ -72,6 +75,9 @@ const Navbar: React.FC = () => {
                 </Link>
                 <Link to="/bookings" className="text-gray-600 hover:text-gray-900">
                   Book Appointment
+                </Link>
+                <Link to="/profile" className="text-gray-600 hover:text-gray-900">
+                  Profile
                 </Link>
               </>
             )}
@@ -137,6 +143,13 @@ const Navbar: React.FC = () => {
                 >
                   Messages
                 </Link>
+                <Link
+                  to="/profile"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Profile
+                </Link>
               </>
             ) : (
               <>
@@ -153,6 +166,13 @@ const Navbar: React.FC = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   Book Appointment
+                </Link>
+                <Link
+                  to="/profile"
+                  className="block text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Profile
                 </Link>
               </>
             )}

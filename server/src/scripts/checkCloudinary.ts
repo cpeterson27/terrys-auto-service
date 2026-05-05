@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import crypto from 'crypto';
-import { v2 as cloudinary } from 'cloudinary';
 import {
+  deleteGalleryMedia,
   getCloudinaryErrorMessage,
   getConfiguredCloudinaryName,
   getConfiguredCloudinarySource,
@@ -66,7 +66,7 @@ const run = async () => {
     console.log('Cloudinary upload test succeeded.');
     console.log(`Uploaded resource type: ${result.resource_type}`);
 
-    await cloudinary.uploader.destroy(result.public_id, { resource_type: 'image' });
+    await deleteGalleryMedia(result.public_id, 'image');
     console.log('Diagnostic asset cleaned up.');
   } catch (error: any) {
     console.error(`Cloudinary error name: ${error?.name || 'unknown'}`);

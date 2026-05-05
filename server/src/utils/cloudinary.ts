@@ -1,4 +1,4 @@
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import type { UploadApiResponse } from 'cloudinary';
 
 export interface UploadedGalleryFile {
   buffer: Buffer;
@@ -15,15 +15,31 @@ const hasSeparateCloudinaryConfig = () => {
   const { apiKey, apiSecret, cloudName } = getSeparateCloudinaryConfig();
   return Boolean(apiKey && apiSecret && cloudName);
 };
-const parseCloudinaryUrl = (cloudinaryUrl: string) => {
-  const parsedUrl = new URL(cloudinaryUrl);
+const parseCloudinaryUrl = (cloudinaryUrl: string | undefined) => {
+  if (!cloudinaryUrl) {
+    return null;
+  }
 
-  return {
-    apiKey: decodeURIComponent(parsedUrl.username),
-    apiSecret: decodeURIComponent(parsedUrl.password),
-    cloudName: parsedUrl.hostname,
-  };
+  try {
+    const parsedUrl = new URL(cloudinaryUrl);
+
+    if (!parsedUrl.username || !parsedUrl.password || !parsedUrl.hostname) {
+      return null;
+    }
+
+    return {
+      apiKey: decodeURIComponent(parsedUrl.username),
+      apiSecret: decodeURIComponent(parsedUrl.password),
+      cloudName: parsedUrl.hostname,
+    };
+  } catch {
+    return null;
+  }
 };
+const parsedCloudinaryUrl = parseCloudinaryUrl(getCloudinaryUrl());
+if (getCloudinaryUrl() && !parsedCloudinaryUrl) {
+  delete process.env.CLOUDINARY_URL;
+}
 const getCloudinaryCloudName = () => {
   const separateConfig = getSeparateCloudinaryConfig();
 
@@ -31,10 +47,8 @@ const getCloudinaryCloudName = () => {
     return separateConfig.cloudName;
   }
 
-  const cloudinaryUrl = getCloudinaryUrl();
-
-  if (cloudinaryUrl) {
-    return parseCloudinaryUrl(cloudinaryUrl).cloudName || 'configured Cloudinary URL';
+  if (parsedCloudinaryUrl) {
+    return parsedCloudinaryUrl.cloudName;
   }
 
   return process.env.CLOUDINARY_CLOUD_NAME?.trim();
@@ -43,8 +57,10 @@ const getCloudinaryCloudName = () => {
 export const isCloudinaryConfigured = () =>
   Boolean(
     hasSeparateCloudinaryConfig() ||
-    getCloudinaryUrl()
+    parsedCloudinaryUrl
   );
+
+const { v2: cloudinary } = require('cloudinary') as typeof import('cloudinary');
 
 const configureCloudinary = () => {
   const separateConfig = getSeparateCloudinaryConfig();
@@ -59,15 +75,11 @@ const configureCloudinary = () => {
     return;
   }
 
-  const cloudinaryUrl = getCloudinaryUrl();
-
-  if (cloudinaryUrl) {
-    const { apiKey, apiSecret, cloudName } = parseCloudinaryUrl(cloudinaryUrl);
-
+  if (parsedCloudinaryUrl) {
     cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
+      cloud_name: parsedCloudinaryUrl.cloudName,
+      api_key: parsedCloudinaryUrl.apiKey,
+      api_secret: parsedCloudinaryUrl.apiSecret,
       secure: true,
     });
     return;

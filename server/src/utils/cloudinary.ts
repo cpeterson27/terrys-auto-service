@@ -1,5 +1,4 @@
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { Readable } from 'stream';
 
 export interface UploadedGalleryFile {
   buffer: Buffer;
@@ -40,7 +39,7 @@ export const uploadGalleryMedia = (file: UploadedGalleryFile): Promise<UploadApi
       }
     );
 
-    Readable.from(file.buffer).pipe(uploadStream);
+    uploadStream.end(file.buffer);
   });
 };
 

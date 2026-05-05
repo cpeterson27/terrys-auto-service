@@ -45,6 +45,14 @@ const userSchema: Schema = new Schema(
       type: Date,
       default: null,
     },
+    accountDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

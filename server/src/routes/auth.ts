@@ -93,7 +93,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 
     const user = await User.findOne({ email: normalizeEmail(email) });
 
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user || user.accountDeleted || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -169,7 +169,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response, next: 
   try {
     const user = await User.findById(req.user?.userId);
 
-    if (!user) {
+    if (!user || user.accountDeleted) {
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -184,7 +184,7 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response,
     const { email, name, phone } = req.body;
     const user = await User.findById(req.user?.userId);
 
-    if (!user) {
+    if (!user || user.accountDeleted) {
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -241,7 +241,7 @@ router.patch('/password', authMiddleware, async (req: AuthRequest, res: Response
 
     const user = await User.findById(req.user?.userId);
 
-    if (!user || !(await user.comparePassword(currentPassword))) {
+    if (!user || user.accountDeleted || !(await user.comparePassword(currentPassword))) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
@@ -249,6 +249,43 @@ router.patch('/password', authMiddleware, async (req: AuthRequest, res: Response
     await user.save();
 
     res.json({ message: 'Password updated.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/profile', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to delete your profile' });
+    }
+
+    const user = await User.findById(req.user?.userId);
+
+    if (!user || user.accountDeleted || !(await user.comparePassword(password))) {
+      return res.status(401).json({ error: 'Password is incorrect' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Admin profiles cannot be deleted from this page' });
+    }
+
+    const deletedEmail = `deleted-${user._id.toString()}@deleted.local`;
+
+    user.name = 'Deleted Customer';
+    user.phone = null;
+    user.email = deletedEmail;
+    user.password = crypto.randomBytes(32).toString('hex');
+    user.emailVerified = false;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    user.accountDeleted = true;
+    user.deletedAt = new Date();
+    await user.save();
+
+    res.json({ message: 'Your profile has been deleted.' });
   } catch (error) {
     next(error);
   }

@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { KeyRound, User } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 
 const ProfilePage: React.FC = () => {
-  const { user, setUser } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, logout, setUser } = useAuthStore();
   const [profileForm, setProfileForm] = React.useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -19,6 +21,9 @@ const ProfilePage: React.FC = () => {
   const [error, setError] = React.useState('');
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [passwordLoading, setPasswordLoading] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deletePassword, setDeletePassword] = React.useState('');
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
 
   React.useEffect(() => {
     const loadProfile = async () => {
@@ -79,6 +84,23 @@ const ProfilePage: React.FC = () => {
       setError(err.response?.data?.error || 'Could not update password');
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const deleteProfile = async () => {
+    setError('');
+    setMessage('');
+    setDeleteLoading(true);
+
+    try {
+      const response = await api.delete('/auth/profile', { data: { password: deletePassword } });
+      logout();
+      navigate('/login', {
+        state: { message: response.data.message || 'Your profile has been deleted.' },
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not delete profile');
+      setDeleteLoading(false);
     }
   };
 
@@ -207,6 +229,65 @@ const ProfilePage: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {user?.role === 'customer' && (
+        <div className="mt-8 rounded-lg border border-red-200 bg-white p-6 shadow">
+          <h2 className="text-2xl font-bold text-gray-950">Delete Profile</h2>
+          <p className="mt-2 text-gray-600">
+            Delete your customer login and remove your personal contact details from the account. Terry's business records may still keep invoice and appointment history.
+          </p>
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="mt-5 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+          >
+            Delete My Profile
+          </button>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Delete profile</p>
+            <h2 className="mt-1 text-2xl font-bold text-gray-950">This cannot be undone</h2>
+            <p className="mt-2 text-gray-600">
+              Enter your password to confirm. Your customer login will be deleted and you will be logged out.
+            </p>
+            <label className="mt-5 block text-sm font-medium text-gray-700">
+              Password
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(event) => setDeletePassword(event.target.value)}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2"
+                autoComplete="current-password"
+              />
+            </label>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeletePassword('');
+                }}
+                disabled={deleteLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Profile
+              </button>
+              <button
+                type="button"
+                onClick={deleteProfile}
+                disabled={deleteLoading || !deletePassword}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Profile'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

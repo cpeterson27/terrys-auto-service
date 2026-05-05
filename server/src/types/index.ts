@@ -8,6 +8,8 @@ export interface IUser {
   emailVerified?: boolean;
   emailVerificationToken?: string | null;
   emailVerificationExpires?: Date | null;
+  accountDeleted?: boolean;
+  deletedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

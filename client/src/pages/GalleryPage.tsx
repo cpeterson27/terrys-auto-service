@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Plus, Trash2, Upload, Video } from 'lucide-react';
+import { AlertTriangle, Image, Pencil, Plus, Trash2, Upload, Video, X } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface GalleryItem {
@@ -47,6 +47,8 @@ const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
 const GalleryPage: React.FC = () => {
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [showForm, setShowForm] = React.useState(false);
+  const [editingItem, setEditingItem] = React.useState<GalleryItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<GalleryItem | null>(null);
   const [error, setError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
@@ -55,6 +57,14 @@ const GalleryPage: React.FC = () => {
     title: '',
     description: '',
     mediaFile: null as File | null,
+    category: 'Auto Service',
+    sortOrder: '0',
+    published: true,
+    featured: true,
+  });
+  const [editForm, setEditForm] = React.useState({
+    title: '',
+    description: '',
     category: 'Auto Service',
     sortOrder: '0',
     published: true,
@@ -148,16 +158,62 @@ const GalleryPage: React.FC = () => {
     }
   };
 
-  const deleteItem = async (id: string) => {
-    if (!window.confirm('Delete this gallery item?')) {
+  const openEditModal = (item: GalleryItem) => {
+    setError('');
+    setEditingItem(item);
+    setEditForm({
+      title: item.title,
+      description: item.description || '',
+      category: getCategory(item.category),
+      sortOrder: String(item.sortOrder || 0),
+      published: item.published,
+      featured: item.featured,
+    });
+  };
+
+  const saveEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!editingItem) {
       return;
     }
 
+    setSaving(true);
+    setError('');
+
     try {
-      await api.delete(`/gallery/${id}`);
+      await api.patch(`/gallery/${editingItem._id}`, {
+        title: editForm.title,
+        description: editForm.description,
+        category: editForm.category,
+        sortOrder: Number(editForm.sortOrder) || 0,
+        published: editForm.published,
+        featured: editForm.featured,
+      });
+      setEditingItem(null);
+      await loadItems();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not update gallery item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteItem = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    try {
+      await api.delete(`/gallery/${deleteTarget._id}`);
+      setDeleteTarget(null);
       await loadItems();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not delete gallery item');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -277,35 +333,35 @@ const GalleryPage: React.FC = () => {
                       </div>
                       <h3 className="font-bold text-lg">{item.title}</h3>
                       {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Category
-                          <input
-                            defaultValue={getCategory(item.category)}
-                            onBlur={(event) => updateItem(item._id, { category: event.target.value })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </label>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Order
-                          <input
-                            type="number"
-                            defaultValue={item.sortOrder}
-                            onBlur={(event) => updateItem(item._id, { sortOrder: Number(event.target.value) || 0 })}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </label>
+                      <div className="mt-4 flex items-center justify-between gap-3 text-sm text-gray-600">
+                        <span>Order {item.sortOrder || 0}</span>
+                        <span>{item.featured ? 'Featured' : 'Standard'}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t">
                         <button
                           onClick={() => updateItem(item._id, { published: !item.published })}
                           className={item.published ? 'text-green-700 font-medium' : 'text-gray-500 font-medium'}
                         >
                           {item.published ? 'Published' : 'Hidden'}
                         </button>
-                        <button onClick={() => deleteItem(item._id)} className="text-red-600 hover:text-red-700">
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            <Pencil size={16} />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(item)}
+                            className="inline-flex items-center justify-center rounded-lg border border-red-200 px-3 py-2 text-red-600 hover:bg-red-50"
+                            aria-label={`Delete ${item.title}`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -313,6 +369,138 @@ const GalleryPage: React.FC = () => {
               </div>
             </section>
           ))}
+        </div>
+      )}
+
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <form onSubmit={saveEdit} className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Edit Media</h2>
+                <p className="mt-1 text-sm text-gray-600">Update how this item appears in Terry's public gallery.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close edit media"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                <input
+                  value={editForm.title}
+                  onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <input
+                  value={editForm.category}
+                  onChange={(event) => setEditForm({ ...editForm, category: event.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Order in Category</label>
+                <input
+                  type="number"
+                  value={editForm.sortOrder}
+                  onChange={(event) => setEditForm({ ...editForm, sortOrder: event.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                  rows={4}
+                />
+              </div>
+              <label className="flex items-center gap-3 rounded-lg border border-gray-200 p-4">
+                <input
+                  type="checkbox"
+                  checked={editForm.published}
+                  onChange={(event) => setEditForm({ ...editForm, published: event.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">Published</span>
+                  <span className="block text-sm text-gray-600">Show this item on the public homepage.</span>
+                </span>
+              </label>
+              <label className="flex items-center gap-3 rounded-lg border border-gray-200 p-4">
+                <input
+                  type="checkbox"
+                  checked={editForm.featured}
+                  onChange={(event) => setEditForm({ ...editForm, featured: event.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span>
+                  <span className="block font-medium text-gray-900">Featured</span>
+                  <span className="block text-sm text-gray-600">Keep this item marked as important work.</span>
+                </span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <AlertTriangle size={24} />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Delete Gallery Item?</h2>
+              <p className="mt-2 text-gray-600">
+                This will permanently remove "{deleteTarget.title}" from the dashboard and the public gallery.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Keep Item
+              </button>
+              <button
+                type="button"
+                onClick={deleteItem}
+                disabled={saving}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {saving ? 'Deleting...' : 'Delete Item'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

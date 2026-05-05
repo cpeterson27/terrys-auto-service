@@ -19,6 +19,14 @@ interface GalleryGroup {
   items: GalleryItem[];
 }
 
+interface PublicAvailability {
+  serviceTimes: string[];
+  bookableDays: number[];
+  serviceStartTime: string;
+  serviceEndTime: string;
+  businessPhone?: string;
+}
+
 const getCategory = (category?: string) => category?.trim() || 'Auto Service';
 
 const groupGalleryItems = (galleryItems: GalleryItem[]): GalleryGroup[] => {
@@ -45,6 +53,14 @@ const services = [
   'Customer vehicle inspections',
 ];
 
+const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const formatTimeOption = (time: string) => {
+  const [hoursValue, minutes] = time.split(':').map(Number);
+  const period = hoursValue >= 12 ? 'PM' : 'AM';
+  const hours = hoursValue % 12 || 12;
+  return `${hours}:${String(minutes).padStart(2, '0')} ${period}`;
+};
+
 const trustPoints = [
   {
     title: 'Straight answers',
@@ -67,6 +83,7 @@ const HomePage: React.FC = () => {
   const { user } = useAuthStore();
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [selectedWork, setSelectedWork] = React.useState<GalleryItem | null>(null);
+  const [availability, setAvailability] = React.useState<PublicAvailability | null>(null);
   const [contactForm, setContactForm] = React.useState({
     name: '',
     email: '',
@@ -80,19 +97,37 @@ const HomePage: React.FC = () => {
   const [contactLoading, setContactLoading] = React.useState(false);
 
   React.useEffect(() => {
-    const loadGallery = async () => {
+    const loadHomeData = async () => {
       try {
-        const response = await api.get('/gallery/public');
-        setItems(response.data?.items || []);
+        const [galleryResponse, availabilityResponse] = await Promise.all([
+          api.get('/gallery/public'),
+          api.get('/settings/public-availability'),
+        ]);
+        setItems(galleryResponse.data?.items || []);
+        setAvailability(availabilityResponse.data || null);
       } catch {
         setItems([]);
       }
     };
 
-    loadGallery();
+    loadHomeData();
   }, []);
 
   const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
+  const hoursText = React.useMemo(() => {
+    if (!availability) {
+      return '';
+    }
+
+    const days = availability.bookableDays
+      .map((day) => dayLabels[day])
+      .filter(Boolean);
+    const compactDays = days.length === 5 && availability.bookableDays.every((day) => [1, 2, 3, 4, 5].includes(day))
+      ? 'Monday-Friday'
+      : days.join(', ');
+
+    return `${compactDays}: ${formatTimeOption(availability.serviceStartTime)}-${formatTimeOption(availability.serviceEndTime)}`;
+  }, [availability]);
 
   const primaryAction = user?.role === 'admin'
     ? { to: '/dashboard', label: 'Go to Dashboard', icon: <LayoutDashboard size={20} /> }
@@ -130,6 +165,24 @@ const HomePage: React.FC = () => {
               <p className="text-xl text-gray-600 mb-8">
                 Reliable vehicle service with clear communication, practical repairs, and work Terry is proud to stand behind.
               </p>
+              {(hoursText || availability?.businessPhone) && (
+                <div className="mb-8 grid gap-3 text-gray-700 sm:grid-cols-2">
+                  {hoursText && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-sm font-semibold text-gray-950">Available Hours</p>
+                      <p className="mt-1 text-sm">{hoursText}</p>
+                    </div>
+                  )}
+                  {availability?.businessPhone && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-sm font-semibold text-gray-950">Call Terry</p>
+                      <a href={`tel:${availability.businessPhone}`} className="mt-1 block text-sm font-semibold text-blue-700">
+                        {availability.businessPhone}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link to={primaryAction.to} className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700">
                   {primaryAction.icon}
@@ -351,10 +404,7 @@ const HomePage: React.FC = () => {
                 )}
               </div>
               <div className="p-6">
-                <div className="mb-4 flex items-center gap-2 text-blue-700">
-                  {selectedWork.mediaType === 'video' ? <PlayCircle size={18} /> : <Image size={18} />}
-                  <span className="text-sm font-semibold">{selectedWork.mediaType === 'video' ? 'Shop Video' : 'Shop Photo'}</span>
-                </div>
+                <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700">{getCategory(selectedWork.category)}</p>
                 <h3 className="text-xl font-bold text-gray-950">{selectedWork.title}</h3>
                 <p className="mt-3 text-gray-600">
                   {selectedWork.description || 'Service work from Terry\'s shop.'}

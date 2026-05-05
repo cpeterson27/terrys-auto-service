@@ -37,7 +37,7 @@ const getAvailabilityForDate = async (dateValue: string) => {
   const { date, nextDate } = getDateRange(dateValue);
 
   if (!bookableDays.includes(date.getUTCDay())) {
-    return [];
+    return { bookable: false, slots: [] };
   }
 
   const occupiedBookings = await Booking.find({
@@ -46,10 +46,13 @@ const getAvailabilityForDate = async (dateValue: string) => {
   }).select('serviceTime status');
 
   const occupiedTimes = new Set(occupiedBookings.map((booking) => booking.serviceTime));
-  return serviceTimes.map((time) => ({
-    time,
-    available: !occupiedTimes.has(time),
-  }));
+  return {
+    bookable: true,
+    slots: serviceTimes.map((time) => ({
+      time,
+      available: !occupiedTimes.has(time),
+    })),
+  };
 };
 
 router.get('/availability', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -60,9 +63,9 @@ router.get('/availability', async (req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ error: 'Date is required' });
     }
 
-    const slots = await getAvailabilityForDate(dateValue);
+    const availability = await getAvailabilityForDate(dateValue);
 
-    res.json({ slots });
+    res.json(availability);
   } catch (error) {
     next(error);
   }
@@ -79,12 +82,13 @@ router.get('/availability-range', async (req: AuthRequest, res: Response, next: 
       const currentDate = new Date(startDate);
       currentDate.setUTCDate(startDate.getUTCDate() + index);
       const dateKey = currentDate.toISOString().slice(0, 10);
-      const slots = await getAvailabilityForDate(dateKey);
+      const dayAvailability = await getAvailabilityForDate(dateKey);
 
       availability.push({
         date: dateKey,
-        openCount: slots.filter((slot) => slot.available).length,
-        slots,
+        bookable: dayAvailability.bookable,
+        openCount: dayAvailability.slots.filter((slot) => slot.available).length,
+        slots: dayAvailability.slots,
       });
     }
 

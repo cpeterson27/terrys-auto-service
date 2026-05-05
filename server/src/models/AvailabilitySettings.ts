@@ -3,6 +3,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 interface IAvailabilitySettingsDocument extends Document {
   serviceTimes: string[];
   bookableDays: number[];
+  serviceStartTime: string;
+  serviceEndTime: string;
+  slotIntervalMinutes: number;
 }
 
 const availabilitySettingsSchema: Schema = new Schema(
@@ -14,6 +17,18 @@ const availabilitySettingsSchema: Schema = new Schema(
     bookableDays: {
       type: [Number],
       default: [1, 2, 3, 4, 5],
+    },
+    serviceStartTime: {
+      type: String,
+      default: '09:00',
+    },
+    serviceEndTime: {
+      type: String,
+      default: '15:00',
+    },
+    slotIntervalMinutes: {
+      type: Number,
+      default: 60,
     },
   },
   { timestamps: true }

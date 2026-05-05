@@ -11,8 +11,6 @@ interface Booking {
   status: string;
 }
 
-const DEFAULT_SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
-
 interface Slot {
   time: string;
   available: boolean;
@@ -20,6 +18,7 @@ interface Slot {
 
 interface DayAvailability {
   date: string;
+  bookable: boolean;
   openCount: number;
   slots: Slot[];
 }
@@ -55,7 +54,7 @@ const getAppointmentNote = (status: string) => {
 
 const BookingPage: React.FC = () => {
   const [bookings, setBookings] = React.useState<Booking[]>([]);
-  const [slots, setSlots] = React.useState<Slot[]>(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
+  const [slots, setSlots] = React.useState<Slot[]>([]);
   const [availabilityDays, setAvailabilityDays] = React.useState<DayAvailability[]>([]);
   const [form, setForm] = React.useState({
     serviceDate: '',
@@ -101,7 +100,7 @@ const BookingPage: React.FC = () => {
   React.useEffect(() => {
       const loadAvailability = async () => {
       if (!form.serviceDate) {
-        setSlots(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
+        setSlots([]);
         return;
       }
 
@@ -132,7 +131,7 @@ const BookingPage: React.FC = () => {
     try {
       await api.post('/bookings', form);
       setForm({ serviceDate: '', serviceTime: '', vehicleInfo: '', description: '' });
-      setSlots(DEFAULT_SERVICE_TIMES.map((time) => ({ time, available: true })));
+      setSlots([]);
       setMessage('Appointment request sent. Terry will confirm it soon.');
       await loadBookings();
       await loadAvailabilityRange();
@@ -194,7 +193,7 @@ const BookingPage: React.FC = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {availabilityDays.map((day) => {
                 const selected = form.serviceDate === day.date;
-                const hasOpenings = day.openCount > 0;
+                const hasOpenings = day.bookable && day.openCount > 0;
 
                 return (
                   <button
@@ -205,7 +204,11 @@ const BookingPage: React.FC = () => {
                   >
                     <p className="font-semibold text-gray-950">{formatDate(day.date)}</p>
                     <p className={`mt-1 text-sm ${hasOpenings ? 'text-green-700' : 'text-red-700'}`}>
-                      {hasOpenings ? `${day.openCount} open time${day.openCount === 1 ? '' : 's'}` : 'Fully booked'}
+                      {!day.bookable
+                        ? 'Closed'
+                        : hasOpenings
+                          ? `${day.openCount} open time${day.openCount === 1 ? '' : 's'}`
+                          : 'Fully booked'}
                     </p>
                   </button>
                 );
@@ -217,7 +220,9 @@ const BookingPage: React.FC = () => {
             <div className="mb-6 rounded-lg border border-gray-200 p-4">
               <h3 className="mb-3 font-semibold text-gray-950">Choose a time</h3>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {slots.map((slot) => (
+                {slots.length === 0 ? (
+                  <p className="col-span-full text-sm text-gray-500">No online appointment times are available for this day.</p>
+                ) : slots.map((slot) => (
                   <button
                     key={slot.time}
                     type="button"

@@ -21,7 +21,8 @@ interface Booking {
   status: string;
 }
 
-const SERVICE_TIME_ORDER = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+const DEFAULT_SERVICE_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM'];
+const SLOT_INTERVALS = [30, 45, 60, 90, 120];
 const BOOKABLE_DAYS = [
   { value: 0, label: 'Sun', fullLabel: 'Sunday' },
   { value: 1, label: 'Mon', fullLabel: 'Monday' },
@@ -31,6 +32,66 @@ const BOOKABLE_DAYS = [
   { value: 5, label: 'Fri', fullLabel: 'Friday' },
   { value: 6, label: 'Sat', fullLabel: 'Saturday' },
 ];
+
+const timeOptions = Array.from({ length: 18 * 2 + 1 }, (_value, index) => {
+  const totalMinutes = 5 * 60 + index * 30;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
+
+const formatTimeOption = (time: string) => {
+  const [hoursValue, minutes] = time.split(':').map(Number);
+  const period = hoursValue >= 12 ? 'PM' : 'AM';
+  const hours = hoursValue % 12 || 12;
+  return `${hours}:${String(minutes).padStart(2, '0')} ${period}`;
+};
+
+const serviceTimeToMinutes = (time: string) => {
+  const match = time.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3];
+
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  return hours * 60 + minutes;
+};
+
+const timeValueToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const buildServiceTimes = (startTime: string, endTime: string, intervalMinutes: number) => {
+  const startMinutes = timeValueToMinutes(startTime);
+  const endMinutes = timeValueToMinutes(endTime);
+
+  if (endMinutes <= startMinutes) {
+    return [];
+  }
+
+  const times: string[] = [];
+
+  for (let minutes = startMinutes; minutes <= endMinutes; minutes += intervalMinutes) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    times.push(formatTimeOption(`${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`));
+  }
+
+  return times;
+};
 
 const getDateKey = (date: Date | string) => {
   const parsedDate = typeof date === 'string' ? new Date(date) : date;
@@ -64,7 +125,7 @@ const sortBookings = (bookings: Booking[]) =>
       return firstDate - secondDate;
     }
 
-    return SERVICE_TIME_ORDER.indexOf(firstBooking.serviceTime) - SERVICE_TIME_ORDER.indexOf(secondBooking.serviceTime);
+    return serviceTimeToMinutes(firstBooking.serviceTime) - serviceTimeToMinutes(secondBooking.serviceTime);
   });
 
 const getStatusClassName = (status: string) => {
@@ -96,8 +157,11 @@ const DashboardPage: React.FC = () => {
   const [cancellationBooking, setCancellationBooking] = React.useState<Booking | null>(null);
   const [cancellationReason, setCancellationReason] = React.useState('');
   const [cancellationSaving, setCancellationSaving] = React.useState(false);
-  const [availableServiceTimes, setAvailableServiceTimes] = React.useState<string[]>(SERVICE_TIME_ORDER);
+  const [availableServiceTimes, setAvailableServiceTimes] = React.useState<string[]>(DEFAULT_SERVICE_TIMES);
   const [bookableDays, setBookableDays] = React.useState<number[]>([1, 2, 3, 4, 5]);
+  const [serviceStartTime, setServiceStartTime] = React.useState('09:00');
+  const [serviceEndTime, setServiceEndTime] = React.useState('15:00');
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = React.useState(60);
   const [availabilityMessage, setAvailabilityMessage] = React.useState('');
   const [availabilitySaving, setAvailabilitySaving] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -124,8 +188,11 @@ const DashboardPage: React.FC = () => {
     const loadAvailability = async () => {
       try {
         const response = await api.get('/settings/availability');
-        setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+        setAvailableServiceTimes(response.data.serviceTimes || DEFAULT_SERVICE_TIMES);
         setBookableDays(response.data.bookableDays || [1, 2, 3, 4, 5]);
+        setServiceStartTime(response.data.serviceStartTime || '09:00');
+        setServiceEndTime(response.data.serviceEndTime || '15:00');
+        setSlotIntervalMinutes(response.data.slotIntervalMinutes || 60);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Could not load availability settings');
       }
@@ -196,15 +263,6 @@ const DashboardPage: React.FC = () => {
     setCalendarMonth((currentMonth) => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
   };
 
-  const toggleServiceTime = (time: string) => {
-    setAvailabilityMessage('');
-    setAvailableServiceTimes((currentTimes) => (
-      currentTimes.includes(time)
-        ? currentTimes.filter((currentTime) => currentTime !== time)
-        : SERVICE_TIME_ORDER.filter((serviceTime) => [...currentTimes, time].includes(serviceTime))
-    ));
-  };
-
   const toggleBookableDay = (day: number) => {
     setAvailabilityMessage('');
     setBookableDays((currentDays) => (
@@ -221,12 +279,17 @@ const DashboardPage: React.FC = () => {
 
     try {
       const response = await api.patch('/settings/availability', {
-        serviceTimes: availableServiceTimes,
         bookableDays,
+        serviceStartTime,
+        serviceEndTime,
+        slotIntervalMinutes,
       });
-      setAvailableServiceTimes(response.data.serviceTimes || SERVICE_TIME_ORDER);
+      setAvailableServiceTimes(response.data.serviceTimes || DEFAULT_SERVICE_TIMES);
       setBookableDays(response.data.bookableDays || [1, 2, 3, 4, 5]);
-      setAvailabilityMessage('Bookable times updated.');
+      setServiceStartTime(response.data.serviceStartTime || serviceStartTime);
+      setServiceEndTime(response.data.serviceEndTime || serviceEndTime);
+      setSlotIntervalMinutes(response.data.slotIntervalMinutes || slotIntervalMinutes);
+      setAvailabilityMessage('Online booking schedule updated.');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not save availability settings');
     } finally {
@@ -239,12 +302,18 @@ const DashboardPage: React.FC = () => {
     .filter((day) => bookableDays.includes(day.value))
     .map((day) => day.fullLabel)
     .join(', ');
+  const previewServiceTimes = React.useMemo(
+    () => buildServiceTimes(serviceStartTime, serviceEndTime, slotIntervalMinutes),
+    [serviceStartTime, serviceEndTime, slotIntervalMinutes]
+  );
+  const scheduleSummary = `${readableDays || 'No days'} from ${formatTimeOption(serviceStartTime)} to ${formatTimeOption(serviceEndTime)}`;
 
   return (
     <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {adminFirstName}</p>
+      <div className="mb-8 rounded-lg bg-gray-950 px-6 py-7 text-white shadow">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">Terry's Auto Service</p>
+        <h1 className="mt-2 text-4xl font-bold">Welcome back, {adminFirstName}</h1>
+        <p className="mt-2 text-gray-300">Manage appointments, business records, gallery work, and online booking availability.</p>
       </div>
 
       {error && (
@@ -299,7 +368,8 @@ const DashboardPage: React.FC = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Online Booking Schedule</h2>
-            <p className="text-gray-600 mt-1">Choose the days and times customers can request appointments online.</p>
+            <p className="text-gray-600 mt-1">Choose the days, start time, end time, and appointment spacing customers can request online.</p>
+            <p className="mt-3 rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800">{scheduleSummary}</p>
             {availabilityMessage && (
               <p className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
                 {availabilityMessage}
@@ -352,30 +422,60 @@ const DashboardPage: React.FC = () => {
             <div className="mb-4 flex items-center gap-2">
               <Clock className="text-blue-600" size={20} />
               <div>
-                <h3 className="font-bold text-gray-950">Bookable Times</h3>
-                <p className="text-sm text-gray-600">{availableServiceTimes.length} time slot{availableServiceTimes.length === 1 ? '' : 's'} available on selected days.</p>
+                <h3 className="font-bold text-gray-950">Hours and Appointment Length</h3>
+                <p className="text-sm text-gray-600">{previewServiceTimes.length} time slot{previewServiceTimes.length === 1 ? '' : 's'} will be shown to customers.</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {SERVICE_TIME_ORDER.map((time) => {
-                const enabled = availableServiceTimes.includes(time);
-
-                return (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => toggleServiceTime(time)}
-                    className={`rounded-lg border px-3 py-3 text-left ${
-                      enabled
-                        ? 'border-green-300 bg-green-50 text-green-900'
-                        : 'border-gray-200 bg-gray-50 text-gray-500'
-                    }`}
-                  >
-                    <span className="block text-sm font-bold">{time}</span>
-                    <span className="block text-xs">{enabled ? 'Shown to customers' : 'Hidden'}</span>
-                  </button>
-                );
-              })}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Start
+                <select
+                  value={serviceStartTime}
+                  onChange={(event) => setServiceStartTime(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+                  {timeOptions.map((time) => (
+                    <option key={time} value={time}>{formatTimeOption(time)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                End
+                <select
+                  value={serviceEndTime}
+                  onChange={(event) => setServiceEndTime(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+                  {timeOptions.map((time) => (
+                    <option key={time} value={time}>{formatTimeOption(time)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Spacing
+                <select
+                  value={slotIntervalMinutes}
+                  onChange={(event) => setSlotIntervalMinutes(Number(event.target.value))}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+                  {SLOT_INTERVALS.map((interval) => (
+                    <option key={interval} value={interval}>{interval} minutes</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 rounded-lg bg-gray-50 p-3">
+              <p className="mb-2 text-sm font-semibold text-gray-700">Customer time preview</p>
+              <div className="flex flex-wrap gap-2">
+                {previewServiceTimes.map((time) => (
+                  <span key={time} className="rounded-full border border-green-200 bg-white px-3 py-1 text-sm font-medium text-green-800">
+                    {time}
+                  </span>
+                ))}
+                {previewServiceTimes.length === 0 && (
+                  <span className="text-sm text-red-700">End time must be later than start time.</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

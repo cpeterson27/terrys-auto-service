@@ -30,6 +30,9 @@ const BookingPage: React.FC = () => {
   const [message, setMessage] = React.useState('');
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [bookingToCancel, setBookingToCancel] = React.useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [cancelLoading, setCancelLoading] = React.useState(false);
 
   const loadBookings = React.useCallback(async () => {
     try {
@@ -85,6 +88,28 @@ const BookingPage: React.FC = () => {
       setError(err.response?.data?.error || 'Could not book appointment');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cancelAppointment = async () => {
+    if (!bookingToCancel) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setCancelLoading(true);
+
+    try {
+      await api.patch(`/bookings/${bookingToCancel._id}/customer-cancel`, { reason: cancelReason });
+      setBookingToCancel(null);
+      setCancelReason('');
+      setMessage('Your appointment has been cancelled. Terry has been notified.');
+      await loadBookings();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not cancel appointment');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -228,12 +253,79 @@ const BookingPage: React.FC = () => {
                   <p className="text-sm text-gray-600">{booking.vehicleInfo}</p>
                   <p className="text-sm text-gray-600">{booking.description}</p>
                 </div>
-                <span className="text-sm font-medium capitalize text-blue-700">{booking.status}</span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <span className="text-sm font-medium capitalize text-blue-700">{booking.status}</span>
+                  {['pending', 'confirmed'].includes(booking.status) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingToCancel(booking);
+                        setCancelReason('');
+                      }}
+                      className="rounded bg-red-50 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {bookingToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Cancel appointment</p>
+            <h2 className="mt-1 text-2xl font-bold text-gray-950">Let Terry know you cannot make it</h2>
+            <p className="mt-2 text-gray-600">
+              This will cancel your appointment and email Terry so he knows the time is open again.
+            </p>
+
+            <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="font-semibold text-gray-950">
+                {formatDate(bookingToCancel.serviceDate)} at {bookingToCancel.serviceTime}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">{bookingToCancel.vehicleInfo}</p>
+              <p className="text-sm text-gray-600">{bookingToCancel.description}</p>
+            </div>
+
+            <label className="mt-5 block text-sm font-medium text-gray-700">
+              Optional note for Terry
+              <textarea
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2"
+                rows={4}
+                placeholder="Example: Something came up and I need to reschedule."
+              />
+            </label>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setBookingToCancel(null);
+                  setCancelReason('');
+                }}
+                disabled={cancelLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Appointment
+              </button>
+              <button
+                type="button"
+                onClick={cancelAppointment}
+                disabled={cancelLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {cancelLoading ? 'Cancelling...' : 'Cancel Appointment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

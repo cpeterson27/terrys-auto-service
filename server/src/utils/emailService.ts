@@ -100,6 +100,33 @@ export const bookingCancellationTemplate = (
   `;
 };
 
+export const customerBookingCancellationTemplate = (
+  customerName: string,
+  customerEmail: string,
+  date: string,
+  time: string,
+  vehicleInfo: string,
+  reason?: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Customer Cancelled Appointment</h2>
+      <p>${customerName} cancelled an appointment with Terry's Auto Service.</p>
+      <p><strong>Customer:</strong> ${customerName}</p>
+      <p><strong>Email:</strong> ${customerEmail}</p>
+      <p><strong>Date:</strong> ${date}</p>
+      <p><strong>Time:</strong> ${time}</p>
+      <p><strong>Vehicle:</strong> ${vehicleInfo}</p>
+      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+      <p>The appointment has been marked cancelled in the dashboard.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};
+
 export const emailVerificationTemplate = (
   customerName: string,
   verificationUrl: string

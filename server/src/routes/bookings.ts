@@ -5,6 +5,7 @@ import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth
 import {
   bookingCancellationTemplate,
   bookingConfirmationTemplate,
+  customerBookingCancellationTemplate,
   sendEmail,
 } from '../utils/emailService';
 
@@ -93,6 +94,61 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
 
     const populatedBooking = await booking.populate('customerId', 'name email phone');
     res.status(201).json({ booking: populatedBooking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id/customer-cancel', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { reason } = req.body;
+    const booking = await Booking.findOne({
+      _id: req.params.id,
+      customerId: req.user?.userId,
+    }).populate('customerId', 'name email phone');
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    if (!['pending', 'confirmed'].includes(booking.status)) {
+      return res.status(400).json({ error: 'Only pending or confirmed appointments can be cancelled' });
+    }
+
+    booking.status = 'cancelled';
+    await booking.save();
+
+    const customer = booking.customerId as any;
+    const customerName = customer?.name || customer?.email || 'Customer';
+    const customerEmail = customer?.email || '';
+    const appointmentDate = new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(booking.serviceDate);
+
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL;
+
+      if (adminEmail) {
+        await sendEmail(
+          adminEmail,
+          'Customer cancelled an appointment',
+          customerBookingCancellationTemplate(
+            customerName,
+            customerEmail,
+            appointmentDate,
+            booking.serviceTime,
+            booking.vehicleInfo,
+            reason
+          )
+        );
+      }
+    } catch (emailError) {
+      console.error('Appointment cancelled, but Terry notification email failed:', emailError);
+    }
+
+    res.json({ booking });
   } catch (error) {
     next(error);
   }

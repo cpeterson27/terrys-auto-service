@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { Invoice } from '../models/Invoice';
 import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth';
 import { calculateInvoiceTotal, generateInvoiceNumber } from '../utils/invoiceUtils';
+import { User } from '../models/User';
 
 const router = Router();
 
@@ -15,6 +16,21 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
       .sort({ issuedDate: -1 });
 
     res.json({ invoices });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/customers', adminMiddleware, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customers = await User.find({
+      role: 'customer',
+      accountDeleted: { $ne: true },
+    })
+      .select('name email phone emailVerified createdAt')
+      .sort({ name: 1, email: 1 });
+
+    res.json({ customers });
   } catch (error) {
     next(error);
   }

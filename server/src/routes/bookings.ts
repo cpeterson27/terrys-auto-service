@@ -284,7 +284,10 @@ router.patch('/:id', adminMiddleware, async (req: AuthRequest, res: Response, ne
 
 router.get('/customers', adminMiddleware, async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const customers = await User.find({ role: 'customer' }).select('name email phone').sort({ name: 1 });
+    const customers = await User.find({
+      role: 'customer',
+      accountDeleted: { $ne: true },
+    }).select('name email phone emailVerified createdAt').sort({ name: 1, email: 1 });
     res.json({ customers });
   } catch (error) {
     next(error);

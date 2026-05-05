@@ -59,6 +59,32 @@ const getUploadedFiles = (req: AuthRequest): UploadedGalleryFile[] => {
   return [];
 };
 
+const uploadFilesToGalleryMedia = async (files: UploadedGalleryFile[]) => {
+  const media = [];
+
+  for (const file of files) {
+    let uploadResult;
+
+    try {
+      uploadResult = await uploadGalleryMedia(file);
+    } catch (error: any) {
+      console.error('Cloudinary upload failed:', error);
+      throw error;
+    }
+
+    const mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';
+
+    media.push({
+      mediaType,
+      mediaUrl: uploadResult.secure_url,
+      thumbnailUrl: mediaType === 'video' ? getVideoThumbnailUrl(uploadResult.public_id) : '',
+      cloudinaryPublicId: uploadResult.public_id,
+    });
+  }
+
+  return media;
+};
+
 router.get('/public', async (_req, res: Response, next: NextFunction) => {
   try {
     const items = await GalleryItem.find({ published: true })
@@ -123,16 +149,14 @@ router.post('/', (req: AuthRequest, res: Response, next: NextFunction) => {
       const baseSortOrder = Number(sortOrder) || 0;
 
       for (const [index, file] of uploadedFiles.entries()) {
-        let uploadResult;
-
+        let uploadedMedia;
         try {
-          uploadResult = await uploadGalleryMedia(file);
+          uploadedMedia = await uploadFilesToGalleryMedia([file]);
         } catch (error: any) {
-          console.error('Cloudinary upload failed:', error);
           return res.status(502).json({ error: getCloudinaryErrorMessage(error) });
         }
 
-        const mediaType = uploadResult.resource_type === 'video' ? 'video' : 'image';
+        const primaryMedia = uploadedMedia[0];
         const originalName = (file.originalname || '').replace(/\.[^/.]+$/, '').trim();
         const itemTitle = String(title || '').trim() || originalName || `Gallery item ${index + 1}`;
         const titleSuffix = uploadedFiles.length > 1 && title ? ` ${index + 1}` : '';
@@ -140,11 +164,12 @@ router.post('/', (req: AuthRequest, res: Response, next: NextFunction) => {
         const item = await GalleryItem.create({
           title: `${itemTitle}${titleSuffix}`,
           description,
-          mediaType,
-          mediaUrl: uploadResult.secure_url,
-          thumbnailUrl: mediaType === 'video' ? getVideoThumbnailUrl(uploadResult.public_id) : '',
+          mediaType: primaryMedia.mediaType,
+          mediaUrl: primaryMedia.mediaUrl,
+          thumbnailUrl: primaryMedia.thumbnailUrl,
           category: normalizeCategory(category),
-          cloudinaryPublicId: uploadResult.public_id,
+          cloudinaryPublicId: primaryMedia.cloudinaryPublicId,
+          additionalMedia: [],
           featured: parseBoolean(featured, true),
           published: parseBoolean(published, true),
           sortOrder: baseSortOrder + index,
@@ -186,6 +211,52 @@ router.post('/', (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 });
 
+router.post('/:id/media', (req: AuthRequest, res: Response, next: NextFunction) => {
+  uploadGalleryFiles(req as any, res as any, (error: any) => {
+    if (error instanceof MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File is too large. Upload a file under 100 MB.' });
+    }
+
+    if (error) {
+      return res.status(400).json({ error: error.message || 'Could not read uploaded file' });
+    }
+
+    next();
+  });
+}, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const uploadedFiles = getUploadedFiles(req);
+
+    if (uploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'Choose at least one photo or video to add' });
+    }
+
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Cloudinary is not configured on the server' });
+    }
+
+    const item = await GalleryItem.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ error: 'Gallery item not found' });
+    }
+
+    let uploadedMedia;
+    try {
+      uploadedMedia = await uploadFilesToGalleryMedia(uploadedFiles);
+    } catch (error: any) {
+      return res.status(502).json({ error: getCloudinaryErrorMessage(error) });
+    }
+
+    item.additionalMedia = [...(item.additionalMedia || []), ...uploadedMedia] as any;
+    await item.save();
+
+    res.status(201).json({ item });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const updates = {
@@ -219,6 +290,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 
     if (item.cloudinaryPublicId) {
       await deleteGalleryMedia(item.cloudinaryPublicId, item.mediaType);
+    }
+
+    for (const media of item.additionalMedia || []) {
+      if (media.cloudinaryPublicId) {
+        await deleteGalleryMedia(media.cloudinaryPublicId, media.mediaType);
+      }
     }
 
     res.json({ success: true });

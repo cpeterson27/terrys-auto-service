@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
         const { user, accessToken } = response.data;
         login(user, accessToken);
         setMessage(response.data.message || 'Password updated. Redirecting...');
-        setTimeout(() => navigate(user.role === 'admin' ? '/dashboard' : '/portal'), 900);
+        setTimeout(() => navigate('/'), 900);
         return;
       }
 
@@ -112,7 +112,7 @@ const LoginPage: React.FC = () => {
 
       const { user, accessToken } = response.data;
       login(user, accessToken);
-      navigate(user.role === 'admin' ? '/dashboard' : '/portal');
+      navigate('/');
     } catch (err: any) {
       const fallbackError = mode === 'login'
         ? 'Login failed'

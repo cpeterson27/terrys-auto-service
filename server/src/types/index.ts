@@ -71,11 +71,19 @@ export interface IGalleryItem {
   thumbnailUrl?: string;
   category?: string;
   cloudinaryPublicId?: string;
+  additionalMedia?: IGalleryMedia[];
   featured: boolean;
   published: boolean;
   sortOrder: number;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface IGalleryMedia {
+  mediaType: 'image' | 'video';
+  mediaUrl: string;
+  thumbnailUrl?: string;
+  cloudinaryPublicId?: string;
 }
 
 export interface AuthTokens {

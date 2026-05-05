@@ -38,6 +38,32 @@ const galleryItemSchema: Schema = new Schema(
       type: String,
       default: '',
     },
+    additionalMedia: {
+      type: [
+        {
+          mediaType: {
+            type: String,
+            enum: ['image', 'video'],
+            required: true,
+          },
+          mediaUrl: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          thumbnailUrl: {
+            type: String,
+            default: '',
+            trim: true,
+          },
+          cloudinaryPublicId: {
+            type: String,
+            default: '',
+          },
+        },
+      ],
+      default: [],
+    },
     featured: {
       type: Boolean,
       default: true,

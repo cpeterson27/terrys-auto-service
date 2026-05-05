@@ -10,10 +10,18 @@ interface GalleryItem {
   mediaType: 'image' | 'video';
   mediaUrl: string;
   thumbnailUrl?: string;
+  additionalMedia?: GalleryMedia[];
   category?: string;
   featured: boolean;
   published: boolean;
   sortOrder: number;
+}
+
+interface GalleryMedia {
+  mediaType: 'image' | 'video';
+  mediaUrl: string;
+  thumbnailUrl?: string;
+  cloudinaryPublicId?: string;
 }
 
 interface GalleryGroup {
@@ -53,8 +61,11 @@ const GalleryPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = React.useState<GalleryItem | null>(null);
   const [error, setError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [addingMedia, setAddingMedia] = React.useState(false);
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
+  const [isDraggingAdditionalMedia, setIsDraggingAdditionalMedia] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const additionalMediaInputRef = React.useRef<HTMLInputElement | null>(null);
   const [form, setForm] = React.useState({
     title: '',
     description: '',
@@ -73,6 +84,8 @@ const GalleryPage: React.FC = () => {
     published: true,
     featured: true,
   });
+  const [additionalFiles, setAdditionalFiles] = React.useState<File[]>([]);
+  const [additionalPreviewUrls, setAdditionalPreviewUrls] = React.useState<string[]>([]);
 
   const loadItems = React.useCallback(async () => {
     try {
@@ -100,6 +113,18 @@ const GalleryPage: React.FC = () => {
 
     return () => previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
   }, [form.mediaFiles]);
+
+  React.useEffect(() => {
+    if (additionalFiles.length === 0) {
+      setAdditionalPreviewUrls([]);
+      return;
+    }
+
+    const previewUrls = additionalFiles.map((file) => URL.createObjectURL(file));
+    setAdditionalPreviewUrls(previewUrls);
+
+    return () => previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+  }, [additionalFiles]);
 
   React.useEffect(() => {
     const itemToEdit = searchParams.get('edit');
@@ -185,10 +210,34 @@ const GalleryPage: React.FC = () => {
     setForm((currentForm) => ({ ...currentForm, mediaFiles: selectedFiles }));
   };
 
+  const setMoreMediaFiles = (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const invalidFile = selectedFiles.find((file) => !file.type.startsWith('image/') && !file.type.startsWith('video/'));
+
+    if (invalidFile) {
+      setError('Only image and video files can be uploaded');
+      return;
+    }
+
+    setError('');
+    setAdditionalFiles(selectedFiles);
+  };
+
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDraggingFile(false);
     setMediaFiles(event.dataTransfer.files);
+  };
+
+  const handleAdditionalMediaDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingAdditionalMedia(false);
+    setMoreMediaFiles(event.dataTransfer.files);
   };
 
   const updateItem = async (id: string, updates: Partial<GalleryItem>) => {
@@ -211,6 +260,7 @@ const GalleryPage: React.FC = () => {
       published: item.published,
       featured: item.featured,
     });
+    setAdditionalFiles([]);
   };
 
   const saveEdit = async (event: React.FormEvent) => {
@@ -238,6 +288,33 @@ const GalleryPage: React.FC = () => {
       setError(err.response?.data?.error || 'Could not update gallery item');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addMediaToItem = async () => {
+    if (!editingItem || additionalFiles.length === 0) {
+      return;
+    }
+
+    setAddingMedia(true);
+    setError('');
+
+    try {
+      const payload = new FormData();
+      additionalFiles.forEach((file) => payload.append('media', file));
+      const response = await api.post(`/gallery/${editingItem._id}/media`, payload);
+      setEditingItem(response.data.item);
+      setAdditionalFiles([]);
+
+      if (additionalMediaInputRef.current) {
+        additionalMediaInputRef.current.value = '';
+      }
+
+      await loadItems();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not add media to this gallery item');
+    } finally {
+      setAddingMedia(false);
     }
   };
 
@@ -421,7 +498,7 @@ const GalleryPage: React.FC = () => {
                       {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
                       <div className="mt-4 flex items-center justify-between gap-3 text-sm text-gray-600">
                         <span>Order {item.sortOrder || 0}</span>
-                        <span>{item.featured ? 'Featured' : 'Standard'}</span>
+                        <span>{(item.additionalMedia?.length || 0) + 1} media item{(item.additionalMedia?.length || 0) === 0 ? '' : 's'}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t">
                         <button
@@ -511,6 +588,101 @@ const GalleryPage: React.FC = () => {
                   className="w-full rounded-lg border border-gray-300 px-4 py-2"
                   rows={4}
                 />
+              </div>
+              <div className="md:col-span-2 rounded-lg border border-gray-200 p-4">
+                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-950">Media for this job</h3>
+                    <p className="text-sm text-gray-600">Keep multiple photos or videos together on this one gallery card.</p>
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">
+                    {(editingItem.additionalMedia?.length || 0) + 1} total
+                  </span>
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[{
+                    mediaType: editingItem.mediaType,
+                    mediaUrl: editingItem.mediaUrl,
+                    thumbnailUrl: editingItem.thumbnailUrl,
+                  }, ...(editingItem.additionalMedia || [])].map((media, index) => (
+                    <div key={`${media.mediaUrl}-${index}`} className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                      <div className="aspect-video bg-gray-950">
+                        {media.mediaType === 'video' ? (
+                          <video src={media.mediaUrl} poster={media.thumbnailUrl} className="h-full w-full object-cover" />
+                        ) : (
+                          <img src={media.mediaUrl} alt={`${editingItem.title} media ${index + 1}`} className="h-full w-full object-cover" />
+                        )}
+                      </div>
+                      <p className="px-2 py-1 text-xs font-medium text-gray-600">{index === 0 ? 'Main' : `Extra ${index}`}</p>
+                    </div>
+                  ))}
+                </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => additionalMediaInputRef.current?.click()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      additionalMediaInputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDraggingAdditionalMedia(true);
+                  }}
+                  onDragLeave={() => setIsDraggingAdditionalMedia(false)}
+                  onDrop={handleAdditionalMediaDrop}
+                  className={`rounded-lg border-2 border-dashed p-4 text-center ${
+                    isDraggingAdditionalMedia ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
+                  }`}
+                >
+                  <Upload className="mx-auto mb-2 text-blue-600" size={24} />
+                  <p className="font-medium text-gray-900">Drop more photos/videos here or click to choose</p>
+                  <input
+                    ref={additionalMediaInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(event) => event.target.files && setMoreMediaFiles(event.target.files)}
+                    className="hidden"
+                  />
+                </div>
+                {additionalFiles.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      {additionalFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="overflow-hidden rounded-lg border border-gray-200">
+                          <div className="aspect-video bg-gray-950">
+                            {file.type.startsWith('video/') ? (
+                              <video src={additionalPreviewUrls[index]} className="h-full w-full object-cover" />
+                            ) : (
+                              <img src={additionalPreviewUrls[index]} alt={`Additional media preview ${index + 1}`} className="h-full w-full object-cover" />
+                            )}
+                          </div>
+                          <p className="truncate px-2 py-1 text-xs text-gray-600">{file.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setAdditionalFiles([])}
+                        className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addMediaToItem}
+                        disabled={addingMedia}
+                        className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {addingMedia ? 'Adding...' : `Add ${additionalFiles.length} Media`}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <label className="flex items-center gap-3 rounded-lg border border-gray-200 p-4">
                 <input

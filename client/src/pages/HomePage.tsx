@@ -11,7 +11,14 @@ interface GalleryItem {
   mediaType: 'image' | 'video';
   mediaUrl: string;
   thumbnailUrl?: string;
+  additionalMedia?: GalleryMedia[];
   category?: string;
+}
+
+interface GalleryMedia {
+  mediaType: 'image' | 'video';
+  mediaUrl: string;
+  thumbnailUrl?: string;
 }
 
 interface GalleryGroup {
@@ -83,6 +90,7 @@ const HomePage: React.FC = () => {
   const { user } = useAuthStore();
   const [items, setItems] = React.useState<GalleryItem[]>([]);
   const [selectedWork, setSelectedWork] = React.useState<GalleryItem | null>(null);
+  const [selectedMediaIndex, setSelectedMediaIndex] = React.useState(0);
   const [availability, setAvailability] = React.useState<PublicAvailability | null>(null);
   const [contactForm, setContactForm] = React.useState({
     name: '',
@@ -151,6 +159,19 @@ const HomePage: React.FC = () => {
       setContactLoading(false);
     }
   };
+
+  const openWorkDetails = (item: GalleryItem) => {
+    setSelectedWork(item);
+    setSelectedMediaIndex(0);
+  };
+
+  const selectedMedia = selectedWork
+    ? [{
+      mediaType: selectedWork.mediaType,
+      mediaUrl: selectedWork.mediaUrl,
+      thumbnailUrl: selectedWork.thumbnailUrl,
+    }, ...(selectedWork.additionalMedia || [])][selectedMediaIndex]
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -252,7 +273,7 @@ const HomePage: React.FC = () => {
                       <article key={item._id} className="overflow-hidden rounded-lg bg-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
                         <button
                           type="button"
-                          onClick={() => setSelectedWork(item)}
+                          onClick={() => openWorkDetails(item)}
                           className="block w-full text-left"
                         >
                           <div className="group relative aspect-video bg-gray-100">
@@ -271,6 +292,9 @@ const HomePage: React.FC = () => {
                         <div className="p-5">
                           <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">{getCategory(item.category)}</p>
                           <h4 className="font-bold text-lg text-gray-950">{item.title}</h4>
+                          {(item.additionalMedia?.length || 0) > 0 && (
+                            <p className="mt-2 text-sm font-medium text-gray-500">{(item.additionalMedia?.length || 0) + 1} photos/videos</p>
+                          )}
                           {item.description && <p className="text-gray-600 mt-2">{item.description}</p>}
                         </div>
                       </article>
@@ -293,9 +317,9 @@ const HomePage: React.FC = () => {
               <div className="mt-6 bg-white rounded-lg shadow p-5 flex gap-3">
                 <Mail className="text-blue-600 flex-shrink-0" size={24} />
                 <div>
-                  <p className="font-semibold text-gray-950">Private by default</p>
+                  <p className="font-semibold text-gray-950">Terry will follow up</p>
                   <p className="text-gray-600 mt-1">
-                    This form keeps Terry's direct contact details off the public page and helps reduce spam.
+                    Send your vehicle details and Terry will get back to you about the next step.
                   </p>
                 </div>
               </div>
@@ -397,10 +421,10 @@ const HomePage: React.FC = () => {
             </div>
             <div className="grid max-h-[calc(100vh-9rem)] grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
               <div className="bg-gray-950">
-                {selectedWork.mediaType === 'image' ? (
-                  <img src={selectedWork.mediaUrl} alt={selectedWork.title} className="max-h-[72vh] w-full object-contain" />
+                {selectedMedia?.mediaType === 'image' ? (
+                  <img src={selectedMedia.mediaUrl} alt={selectedWork.title} className="max-h-[72vh] w-full object-contain" />
                 ) : (
-                  <video src={selectedWork.mediaUrl} poster={selectedWork.thumbnailUrl} controls className="max-h-[72vh] w-full bg-black" />
+                  <video src={selectedMedia?.mediaUrl} poster={selectedMedia?.thumbnailUrl} controls className="max-h-[72vh] w-full bg-black" />
                 )}
               </div>
               <div className="p-6">
@@ -409,6 +433,33 @@ const HomePage: React.FC = () => {
                 <p className="mt-3 text-gray-600">
                   {selectedWork.description || 'Service work from Terry\'s shop.'}
                 </p>
+                {selectedWork.additionalMedia && selectedWork.additionalMedia.length > 0 && (
+                  <div className="mt-5">
+                    <p className="mb-2 text-sm font-semibold text-gray-700">More from this job</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[{
+                        mediaType: selectedWork.mediaType,
+                        mediaUrl: selectedWork.mediaUrl,
+                        thumbnailUrl: selectedWork.thumbnailUrl,
+                      }, ...selectedWork.additionalMedia].map((media, index) => (
+                        <button
+                          key={`${media.mediaUrl}-${index}`}
+                          type="button"
+                          onClick={() => setSelectedMediaIndex(index)}
+                          className={`overflow-hidden rounded border ${selectedMediaIndex === index ? 'border-blue-600' : 'border-gray-200'}`}
+                        >
+                          <div className="aspect-video bg-gray-950">
+                            <img
+                              src={media.thumbnailUrl || media.mediaUrl}
+                              alt={`${selectedWork.title} thumbnail ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <Link
                   to={user?.role === 'admin' ? `/gallery?edit=${selectedWork._id}` : primaryAction.to}
                   className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"

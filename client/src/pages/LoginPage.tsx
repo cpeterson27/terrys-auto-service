@@ -23,7 +23,7 @@ const getEmailValidationError = (email: string) => {
   }
 
   if (!localPart || localPart.length < 2 || !domain || BLOCKED_EMAIL_DOMAINS.has(domain)) {
-    return 'Please use a real email address you can access.';
+    return 'Please enter a valid email address you can access — we’ll use it to send important updates.';
   }
 
   return '';

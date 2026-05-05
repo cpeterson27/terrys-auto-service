@@ -15,6 +15,10 @@ const configureCloudinary = () => {
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
   });
+    // 🔥 TEMP TEST
+  cloudinary.api.ping()
+    .then(res => console.log("Cloudinary ping success:", res))
+    .catch(err => console.error("Cloudinary ping failed:", err));
 };
 
 export const uploadGalleryMedia = (file: UploadedGalleryFile): Promise<UploadApiResponse> => {

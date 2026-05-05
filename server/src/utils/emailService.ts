@@ -100,6 +100,32 @@ export const bookingCancellationTemplate = (
   `;
 };
 
+export const bookingRescheduleTemplate = (
+  customerName: string,
+  oldDate: string,
+  oldTime: string,
+  newDate: string,
+  newTime: string,
+  reason?: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Appointment Updated</h2>
+      <p>Hi ${customerName},</p>
+      <p>Terry updated your appointment with Terry's Auto Service.</p>
+      <p><strong>Previous appointment:</strong> ${oldDate} at ${oldTime}</p>
+      <p><strong>New appointment:</strong> ${newDate} at ${newTime}</p>
+      ${reason ? `<p><strong>Note:</strong> ${reason}</p>` : ''}
+      <p>If this new time does not work for you, please contact Terry or submit a new appointment request.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};
+
+
 export const customerBookingCancellationTemplate = (
   customerName: string,
   customerEmail: string,

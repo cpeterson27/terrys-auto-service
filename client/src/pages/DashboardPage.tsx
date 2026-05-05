@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/authStore';
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, Clock, DollarSign, FileText } from 'lucide-react';
+import { BarChart3, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, FileText, RotateCw, User, XCircle } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface DashboardStats {
@@ -154,9 +154,15 @@ const DashboardPage: React.FC = () => {
   });
   const [allBookings, setAllBookings] = React.useState<Booking[]>([]);
   const [calendarMonth, setCalendarMonth] = React.useState(() => new Date());
+  const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
   const [cancellationBooking, setCancellationBooking] = React.useState<Booking | null>(null);
   const [cancellationReason, setCancellationReason] = React.useState('');
   const [cancellationSaving, setCancellationSaving] = React.useState(false);
+  const [rescheduleBooking, setRescheduleBooking] = React.useState<Booking | null>(null);
+  const [rescheduleDate, setRescheduleDate] = React.useState('');
+  const [rescheduleTime, setRescheduleTime] = React.useState('');
+  const [rescheduleReason, setRescheduleReason] = React.useState('');
+  const [rescheduleSaving, setRescheduleSaving] = React.useState(false);
   const [availableServiceTimes, setAvailableServiceTimes] = React.useState<string[]>(DEFAULT_SERVICE_TIMES);
   const [bookableDays, setBookableDays] = React.useState<number[]>([1, 2, 3, 4, 5]);
   const [serviceStartTime, setServiceStartTime] = React.useState('09:00');
@@ -207,14 +213,27 @@ const DashboardPage: React.FC = () => {
     try {
       await api.patch(`/bookings/${bookingId}`, { status, reason });
       await loadStats();
+      setSelectedBooking((currentBooking) => currentBooking && currentBooking._id === bookingId
+        ? { ...currentBooking, status }
+        : currentBooking
+      );
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not update appointment');
     }
   };
 
   const openCancellationModal = (booking: Booking) => {
+    setSelectedBooking(null);
     setCancellationBooking(booking);
     setCancellationReason('');
+  };
+
+  const openRescheduleModal = (booking: Booking) => {
+    setSelectedBooking(null);
+    setRescheduleBooking(booking);
+    setRescheduleDate(getDateKey(booking.serviceDate));
+    setRescheduleTime(booking.serviceTime);
+    setRescheduleReason('');
   };
 
   const closeCancellationModal = () => {
@@ -239,6 +258,43 @@ const DashboardPage: React.FC = () => {
       setCancellationReason('');
     } finally {
       setCancellationSaving(false);
+    }
+  };
+
+  const closeRescheduleModal = () => {
+    if (rescheduleSaving) {
+      return;
+    }
+
+    setRescheduleBooking(null);
+    setRescheduleDate('');
+    setRescheduleTime('');
+    setRescheduleReason('');
+  };
+
+  const submitReschedule = async () => {
+    if (!rescheduleBooking) {
+      return;
+    }
+
+    setError('');
+    setRescheduleSaving(true);
+
+    try {
+      await api.patch(`/bookings/${rescheduleBooking._id}/reschedule`, {
+        serviceDate: rescheduleDate,
+        serviceTime: rescheduleTime,
+        reason: rescheduleReason,
+      });
+      await loadStats();
+      setRescheduleBooking(null);
+      setRescheduleDate('');
+      setRescheduleTime('');
+      setRescheduleReason('');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not reschedule appointment');
+    } finally {
+      setRescheduleSaving(false);
     }
   };
 
@@ -307,6 +363,11 @@ const DashboardPage: React.FC = () => {
     [serviceStartTime, serviceEndTime, slotIntervalMinutes]
   );
   const scheduleSummary = `${readableDays || 'No days'} from ${formatTimeOption(serviceStartTime)} to ${formatTimeOption(serviceEndTime)}`;
+  const todayKey = getDateKey(new Date());
+  const activeBookings = sortedBookings.filter((booking) => booking.status !== 'cancelled' && booking.status !== 'completed');
+  const todayBookings = activeBookings.filter((booking) => getDateKey(booking.serviceDate) === todayKey);
+  const nextBookings = activeBookings.filter((booking) => getDateKey(booking.serviceDate) >= todayKey).slice(0, 6);
+  const customerName = (booking: Booking) => booking.customerId?.name || booking.customerId?.email || 'Customer';
 
   return (
     <div className="container mx-auto py-8">
@@ -485,7 +546,7 @@ const DashboardPage: React.FC = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
           <div>
             <h2 className="text-2xl font-bold">Appointment Calendar</h2>
-            <p className="text-gray-600 mt-1">All appointments by service day, color-coded by status.</p>
+            <p className="text-gray-600 mt-1">Click any appointment to confirm, complete, reschedule, or cancel it.</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -508,100 +569,291 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 border border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="border-b border-gray-200 bg-gray-50 px-2 py-2 text-center">
-              {day}
-            </div>
-          ))}
-          {calendarDays.map((day, index) => {
-            const dayBookings = day ? calendarBookingsByDay.get(getDateKey(day)) || [] : [];
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="grid grid-cols-7 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="border-b border-gray-200 bg-gray-50 px-2 py-2 text-center">
+                  {day}
+                </div>
+              ))}
+              {calendarDays.map((day, index) => {
+                const dayBookings = day ? calendarBookingsByDay.get(getDateKey(day)) || [] : [];
+                const isToday = day ? getDateKey(day) === todayKey : false;
 
-            return (
-              <div key={day ? getDateKey(day) : `empty-${index}`} className="min-h-[120px] border-b border-r border-gray-200 p-2">
-                {day && (
-                  <>
-                    <p className="mb-2 font-bold text-gray-900">{day.getDate()}</p>
-                    <div className="space-y-1">
-                      {dayBookings.map((booking) => (
-                        <div
-                          key={booking._id}
-                          className={`rounded px-2 py-1 text-left normal-case tracking-normal ${getStatusClassName(booking.status)}`}
-                        >
-                          <p className="truncate font-semibold">{booking.serviceTime}</p>
-                          <p className="truncate">{booking.customerId?.name || booking.customerId?.email || 'Customer'}</p>
-                          <p className="capitalize">{booking.status}</p>
+                return (
+                  <div key={day ? getDateKey(day) : `empty-${index}`} className="min-h-[132px] border-b border-r border-gray-200 p-2">
+                    {day && (
+                      <>
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className={`flex h-7 w-7 items-center justify-center rounded-full font-bold ${isToday ? 'bg-blue-600 text-white' : 'text-gray-900'}`}>
+                            {day.getDate()}
+                          </p>
+                          {dayBookings.length > 0 && (
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                              {dayBookings.length}
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                        <div className="space-y-1">
+                          {dayBookings.map((booking) => (
+                            <button
+                              key={booking._id}
+                              type="button"
+                              onClick={() => setSelectedBooking(booking)}
+                              className={`block w-full rounded px-2 py-1 text-left normal-case tracking-normal transition hover:ring-2 hover:ring-blue-300 ${getStatusClassName(booking.status)}`}
+                            >
+                              <span className="block truncate font-semibold">{booking.serviceTime} · {customerName(booking)}</span>
+                              <span className="block truncate">{booking.vehicleInfo}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-gray-950">Today</h3>
+              <p className="text-sm text-gray-600">{todayBookings.length} active appointment{todayBookings.length === 1 ? '' : 's'}</p>
+            </div>
+            <div className="space-y-2">
+              {todayBookings.length === 0 ? (
+                <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No active appointments today.</p>
+              ) : todayBookings.map((booking) => (
+                <button
+                  key={booking._id}
+                  type="button"
+                  onClick={() => setSelectedBooking(booking)}
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-blue-300"
+                >
+                  <p className="font-semibold text-gray-950">{booking.serviceTime} · {customerName(booking)}</p>
+                  <p className="text-sm text-gray-600">{booking.vehicleInfo}</p>
+                  <span className={`mt-2 inline-block rounded px-2 py-1 text-xs font-semibold capitalize ${getStatusClassName(booking.status)}`}>
+                    {booking.status}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <h3 className="text-lg font-bold text-gray-950">Next Up</h3>
+              <div className="mt-3 space-y-2">
+                {nextBookings.length === 0 ? (
+                  <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No upcoming active appointments.</p>
+                ) : nextBookings.map((booking) => (
+                  <button
+                    key={booking._id}
+                    type="button"
+                    onClick={() => setSelectedBooking(booking)}
+                    className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-blue-300"
+                  >
+                    <p className="text-sm font-semibold text-gray-950">{formatDate(booking.serviceDate)} at {booking.serviceTime}</p>
+                    <p className="text-sm text-gray-600">{customerName(booking)} · {booking.vehicleInfo}</p>
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          </aside>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-2xl font-bold mb-4">Appointments</h2>
-        {sortedBookings.length === 0 ? (
-          <p className="text-gray-500 py-4">No appointments booked yet.</p>
-        ) : (
-          <div className="divide-y">
-            {sortedBookings.map((booking) => (
-              <div key={booking._id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {booking.customerId?.name || booking.customerId?.email || 'Customer'}
-                  </p>
-                  <p className="text-sm text-gray-600">{booking.vehicleInfo}</p>
-                  {booking.description && (
-                    <p className="text-sm text-gray-600">{booking.description}</p>
+      {selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Appointment</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-950">{customerName(selectedBooking)}</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  {formatDate(selectedBooking.serviceDate)} at {selectedBooking.serviceTime}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedBooking(null)}
+                className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Close appointment"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-gray-500">
+                    <Clock size={18} />
+                    <p className="text-xs font-semibold uppercase">Time</p>
+                  </div>
+                  <p className="font-semibold text-gray-950">{selectedBooking.serviceTime}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-gray-500">
+                    <User size={18} />
+                    <p className="text-xs font-semibold uppercase">Customer</p>
+                  </div>
+                  <p className="font-semibold text-gray-950">{customerName(selectedBooking)}</p>
+                  {selectedBooking.customerId?.email && (
+                    <p className="text-sm text-gray-600">{selectedBooking.customerId.email}</p>
                   )}
                 </div>
-                <div className="text-sm text-gray-700">
-                  {formatDate(booking.serviceDate)} at {booking.serviceTime}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded px-2 py-1 text-sm font-medium capitalize ${getStatusClassName(booking.status)}`}>{booking.status}</span>
-                  {booking.status === 'pending' && (
-                    <button
-                      onClick={() => updateBookingStatus(booking._id, 'confirmed')}
-                      className="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700"
-                    >
-                      Confirm
-                    </button>
-                  )}
-                  {booking.status === 'confirmed' && (
-                    <>
-                      <button
-                        onClick={() => updateBookingStatus(booking._id, 'pending')}
-                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-200"
-                      >
-                        Back to Pending
-                      </button>
-                      <button
-                        onClick={() => updateBookingStatus(booking._id, 'completed')}
-                        className="bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm font-semibold hover:bg-blue-100"
-                      >
-                        Complete
-                      </button>
-                    </>
-                  )}
-                  {booking.status !== 'cancelled' && (
-                    <button
-                      onClick={() => openCancellationModal(booking)}
-                      className="bg-red-50 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-100"
-                    >
-                      Cancel / Reschedule
-                    </button>
-                  )}
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Status</p>
+                  <span className={`inline-block rounded px-2 py-1 text-sm font-semibold capitalize ${getStatusClassName(selectedBooking.status)}`}>
+                    {selectedBooking.status}
+                  </span>
                 </div>
               </div>
-            ))}
+
+              <div className="rounded-lg bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">Vehicle</p>
+                <p className="mt-1 text-gray-700">{selectedBooking.vehicleInfo}</p>
+                {selectedBooking.description && (
+                  <>
+                    <p className="mt-4 text-sm font-semibold text-gray-900">Service Request</p>
+                    <p className="mt-1 whitespace-pre-wrap text-gray-700">{selectedBooking.description}</p>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {selectedBooking.status === 'pending' && (
+                  <button
+                    type="button"
+                    onClick={() => updateBookingStatus(selectedBooking._id, 'confirmed')}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700"
+                  >
+                    <CheckCircle size={18} />
+                    Confirm Appointment
+                  </button>
+                )}
+                {selectedBooking.status === 'confirmed' && (
+                  <button
+                    type="button"
+                    onClick={() => updateBookingStatus(selectedBooking._id, 'completed')}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+                  >
+                    <CheckCircle size={18} />
+                    Mark Complete
+                  </button>
+                )}
+                {selectedBooking.status === 'confirmed' && (
+                  <button
+                    type="button"
+                    onClick={() => updateBookingStatus(selectedBooking._id, 'pending')}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Back to Pending
+                  </button>
+                )}
+                {['pending', 'confirmed'].includes(selectedBooking.status) && (
+                  <button
+                    type="button"
+                    onClick={() => openRescheduleModal(selectedBooking)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    <RotateCw size={18} />
+                    Reschedule
+                  </button>
+                )}
+                {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
+                  <button
+                    type="button"
+                    onClick={() => openCancellationModal(selectedBooking)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-semibold text-red-700 hover:bg-red-100"
+                  >
+                    <XCircle size={18} />
+                    Cancel and Email Customer
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {rescheduleBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Reschedule appointment</p>
+              <h2 className="mt-1 text-2xl font-bold text-gray-950">Choose a new day and time</h2>
+              <p className="mt-2 text-gray-600">
+                The appointment will be confirmed at the new time and the customer will receive an email.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="font-semibold text-gray-950">{customerName(rescheduleBooking)}</p>
+              <p className="mt-1 text-sm text-gray-600">{rescheduleBooking.vehicleInfo}</p>
+              <p className="text-sm text-gray-600">
+                Current: {formatDate(rescheduleBooking.serviceDate)} at {rescheduleBooking.serviceTime}
+              </p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-700">
+                New Date
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(event) => setRescheduleDate(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2"
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                New Time
+                <select
+                  value={rescheduleTime}
+                  onChange={(event) => setRescheduleTime(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2"
+                  required
+                >
+                  {availableServiceTimes.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-5 block text-sm font-medium text-gray-700">
+              Message to include in the email
+              <textarea
+                value={rescheduleReason}
+                onChange={(event) => setRescheduleReason(event.target.value)}
+                rows={4}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Example: Terry had an emergency come up and moved your appointment to the next available time."
+              />
+            </label>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeRescheduleModal}
+                disabled={rescheduleSaving}
+                className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Keep Current Time
+              </button>
+              <button
+                type="button"
+                onClick={submitReschedule}
+                disabled={rescheduleSaving}
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {rescheduleSaving ? 'Saving...' : 'Reschedule & Email Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cancellationBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

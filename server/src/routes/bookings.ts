@@ -5,6 +5,7 @@ import { AuthRequest, adminMiddleware, authMiddleware } from '../middleware/auth
 import {
   bookingCancellationTemplate,
   bookingConfirmationTemplate,
+  bookingRescheduleTemplate,
   customerBookingCancellationTemplate,
   sendEmail,
 } from '../utils/emailService';
@@ -54,6 +55,12 @@ const getAvailabilityForDate = async (dateValue: string) => {
     })),
   };
 };
+
+const formatAppointmentDate = (date: Date) => new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+}).format(date);
 
 router.get('/availability', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -182,11 +189,7 @@ router.patch('/:id/customer-cancel', async (req: AuthRequest, res: Response, nex
     const customer = booking.customerId as any;
     const customerName = customer?.name || customer?.email || 'Customer';
     const customerEmail = customer?.email || '';
-    const appointmentDate = new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(booking.serviceDate);
+    const appointmentDate = formatAppointmentDate(booking.serviceDate);
 
     try {
       const adminEmail = process.env.ADMIN_EMAIL;
@@ -207,6 +210,83 @@ router.patch('/:id/customer-cancel', async (req: AuthRequest, res: Response, nex
       }
     } catch (emailError) {
       console.error('Appointment cancelled, but Terry notification email failed:', emailError);
+    }
+
+    res.json({ booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id/reschedule', adminMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { serviceDate, serviceTime, reason } = req.body;
+
+    if (!serviceDate || !serviceTime) {
+      return res.status(400).json({ error: 'New date and time are required' });
+    }
+
+    const currentBooking = await Booking.findById(req.params.id);
+
+    if (!currentBooking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (currentBooking.status === 'cancelled' || currentBooking.status === 'completed') {
+      return res.status(400).json({ error: 'Only pending or confirmed appointments can be rescheduled' });
+    }
+
+    const { serviceTimes, bookableDays } = await getAvailabilitySettings();
+
+    if (!serviceTimes.includes(serviceTime)) {
+      return res.status(400).json({ error: 'Please choose one of Terry’s available service times' });
+    }
+
+    const { date, nextDate } = getDateRange(serviceDate);
+
+    if (isPastServiceDate(date)) {
+      return res.status(400).json({ error: 'Please choose a future service date' });
+    }
+
+    if (!bookableDays.includes(date.getUTCDay())) {
+      return res.status(400).json({ error: 'Terry is not taking online appointments that day. Please choose another day.' });
+    }
+
+    const conflictingBooking = await Booking.findOne({
+      _id: { $ne: currentBooking._id },
+      serviceDate: { $gte: date, $lt: nextDate },
+      serviceTime,
+      status: { $ne: 'cancelled' },
+    });
+
+    if (conflictingBooking) {
+      return res.status(409).json({ error: 'Another appointment is already booked for that time.' });
+    }
+
+    const oldDate = formatAppointmentDate(currentBooking.serviceDate);
+    const oldTime = currentBooking.serviceTime;
+
+    currentBooking.serviceDate = date;
+    currentBooking.serviceTime = serviceTime;
+    currentBooking.status = 'confirmed';
+    await currentBooking.save();
+
+    const booking = await currentBooking.populate('customerId', 'name email phone');
+    const customer = booking.customerId as any;
+    const customerEmail = customer?.email;
+    const customerName = customer?.name || customer?.email || 'there';
+    const newDate = formatAppointmentDate(booking.serviceDate);
+
+    try {
+      if (customerEmail) {
+        await sendEmail(
+          customerEmail,
+          'Your appointment has been updated',
+          bookingRescheduleTemplate(customerName, oldDate, oldTime, newDate, booking.serviceTime, reason)
+        );
+      }
+    } catch (emailError) {
+      console.error('Appointment rescheduled, but notification email failed:', emailError);
     }
 
     res.json({ booking });
@@ -250,11 +330,7 @@ router.patch('/:id', adminMiddleware, async (req: AuthRequest, res: Response, ne
     const customer = booking.customerId as any;
     const customerEmail = customer?.email;
     const customerName = customer?.name || customer?.email || 'there';
-    const appointmentDate = new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(booking.serviceDate);
+    const appointmentDate = formatAppointmentDate(booking.serviceDate);
 
     try {
       if (customerEmail && status === 'confirmed') {

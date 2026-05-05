@@ -206,8 +206,8 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600">Bookings</p>
-              <p className="text-3xl font-bold">{stats.pendingBookings}</p>
+              <p className="text-gray-600">Appointments</p>
+              <p className="text-3xl font-bold">{allBookings.length}</p>
             </div>
             <Calendar size={40} className="text-purple-500" />
           </div>

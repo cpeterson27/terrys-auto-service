@@ -3,6 +3,32 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
 
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  'example.com',
+  'example.net',
+  'example.org',
+  'test.com',
+  'invalid.com',
+  'fake.com',
+  'email.com',
+]);
+
+const getEmailValidationError = (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const [localPart, domain] = normalizedEmail.split('@');
+
+  if (!emailPattern.test(normalizedEmail)) {
+    return 'Please enter a valid email address.';
+  }
+
+  if (!localPart || localPart.length < 2 || !domain || BLOCKED_EMAIL_DOMAINS.has(domain)) {
+    return 'Please use a real email address you can access.';
+  }
+
+  return '';
+};
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +56,16 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setError('');
     setMessage('');
+
+    if (mode === 'signup') {
+      const emailValidationError = getEmailValidationError(email);
+
+      if (emailValidationError) {
+        setError(emailValidationError);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -141,6 +177,11 @@ const LoginPage: React.FC = () => {
               autoComplete="email"
               required
             />
+            {mode === 'signup' && (
+              <p className="mt-2 text-sm text-gray-500">
+                Use an email you can open. We will send a verification link before the account can log in.
+              </p>
+            )}
           </div>
 
           <div className="mb-6">

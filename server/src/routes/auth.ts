@@ -6,8 +6,35 @@ import { emailVerificationTemplate, sendEmail } from '../utils/emailService';
 
 const router = Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  'example.com',
+  'example.net',
+  'example.org',
+  'test.com',
+  'invalid.com',
+  'fake.com',
+  'email.com',
+]);
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const validateEmailAddress = (email: string) => {
+  if (!EMAIL_PATTERN.test(email)) {
+    return 'Please enter a valid email address';
+  }
+
+  const [localPart, domain] = email.split('@');
+
+  if (
+    !localPart ||
+    !domain ||
+    BLOCKED_EMAIL_DOMAINS.has(domain) ||
+    localPart.length < 2
+  ) {
+    return 'Please use a real email address you can access';
+  }
+
+  return null;
+};
 
 const getFrontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim();
 
@@ -50,8 +77,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 
     const normalizedEmail = normalizeEmail(email);
 
-    if (!EMAIL_PATTERN.test(normalizedEmail)) {
-      return res.status(400).json({ error: 'Please enter a valid email address' });
+    const emailError = validateEmailAddress(normalizedEmail);
+
+    if (emailError) {
+      return res.status(400).json({ error: emailError });
     }
 
     if (password.length < 6) {
@@ -73,7 +102,15 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       emailVerified: false,
     });
 
-    await sendVerificationEmail(user);
+    try {
+      await sendVerificationEmail(user);
+    } catch (emailError) {
+      await User.findByIdAndDelete(user._id);
+      console.error('Verification email failed during registration:', emailError);
+      return res.status(502).json({
+        error: 'We could not send a verification email to that address. Please check the email and try again.',
+      });
+    }
 
     res.status(201).json({
       message: 'Account created. Please check your email to verify your account before logging in.',
@@ -198,8 +235,10 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response,
     if (email) {
       const normalizedEmail = normalizeEmail(email);
 
-      if (!EMAIL_PATTERN.test(normalizedEmail)) {
-        return res.status(400).json({ error: 'Please enter a valid email address' });
+      const emailError = validateEmailAddress(normalizedEmail);
+
+      if (emailError) {
+        return res.status(400).json({ error: emailError });
       }
 
       if (normalizedEmail !== user.email) {
@@ -209,9 +248,24 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response,
           return res.status(409).json({ error: 'An account with that email already exists' });
         }
 
+        const previousEmail = user.email;
+        const previousEmailVerified = user.emailVerified;
         user.email = normalizedEmail;
         user.emailVerified = false;
-        await sendVerificationEmail(user);
+
+        try {
+          await sendVerificationEmail(user);
+        } catch (emailError) {
+          user.email = previousEmail;
+          user.emailVerified = previousEmailVerified;
+          user.emailVerificationToken = null;
+          user.emailVerificationExpires = null;
+          await user.save();
+          console.error('Verification email failed during profile update:', emailError);
+          return res.status(502).json({
+            error: 'We could not send a verification email to that address. Please check the email and try again.',
+          });
+        }
 
         return res.json({
           user: getPublicUser(user),

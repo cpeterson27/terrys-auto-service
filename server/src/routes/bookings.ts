@@ -22,6 +22,30 @@ const getDateRange = (dateValue: string) => {
   return { date, nextDate };
 };
 
+const isPastServiceDate = (date: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const serviceDay = new Date(date);
+  serviceDay.setHours(0, 0, 0, 0);
+
+  return serviceDay < today;
+};
+
+const getAvailabilityForDate = async (dateValue: string) => {
+  const { date, nextDate } = getDateRange(dateValue);
+  const occupiedBookings = await Booking.find({
+    serviceDate: { $gte: date, $lt: nextDate },
+    status: { $ne: 'cancelled' },
+  }).select('serviceTime status');
+
+  const occupiedTimes = new Set(occupiedBookings.map((booking) => booking.serviceTime));
+  return SERVICE_TIMES.map((time) => ({
+    time,
+    available: !occupiedTimes.has(time),
+  }));
+};
+
 router.get('/availability', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const dateValue = String(req.query.date || '');
@@ -30,19 +54,35 @@ router.get('/availability', async (req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ error: 'Date is required' });
     }
 
-    const { date, nextDate } = getDateRange(dateValue);
-    const occupiedBookings = await Booking.find({
-      serviceDate: { $gte: date, $lt: nextDate },
-      status: { $in: ['pending', 'confirmed'] },
-    }).select('serviceTime status');
-
-    const occupiedTimes = new Set(occupiedBookings.map((booking) => booking.serviceTime));
-    const slots = SERVICE_TIMES.map((time) => ({
-      time,
-      available: !occupiedTimes.has(time),
-    }));
+    const slots = await getAvailabilityForDate(dateValue);
 
     res.json({ slots });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/availability-range', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const startValue = String(req.query.start || new Date().toISOString().slice(0, 10));
+    const days = Math.min(Math.max(Number(req.query.days || 14), 1), 31);
+    const startDate = new Date(startValue);
+    const availability = [];
+
+    for (let index = 0; index < days; index += 1) {
+      const currentDate = new Date(startDate);
+      currentDate.setUTCDate(startDate.getUTCDate() + index);
+      const dateKey = currentDate.toISOString().slice(0, 10);
+      const slots = await getAvailabilityForDate(dateKey);
+
+      availability.push({
+        date: dateKey,
+        openCount: slots.filter((slot) => slot.available).length,
+        slots,
+      });
+    }
+
+    res.json({ availability });
   } catch (error) {
     next(error);
   }
@@ -74,10 +114,15 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
     }
 
     const { date, nextDate } = getDateRange(serviceDate);
+
+    if (isPastServiceDate(date)) {
+      return res.status(400).json({ error: 'Please choose a future service date' });
+    }
+
     const existingBooking = await Booking.findOne({
       serviceDate: { $gte: date, $lt: nextDate },
       serviceTime,
-      status: { $in: ['pending', 'confirmed'] },
+      status: { $ne: 'cancelled' },
     });
 
     if (existingBooking) {

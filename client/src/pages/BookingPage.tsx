@@ -18,9 +18,18 @@ interface Slot {
   available: boolean;
 }
 
+interface DayAvailability {
+  date: string;
+  openCount: number;
+  slots: Slot[];
+}
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
 const BookingPage: React.FC = () => {
   const [bookings, setBookings] = React.useState<Booking[]>([]);
   const [slots, setSlots] = React.useState<Slot[]>(SERVICE_TIMES.map((time) => ({ time, available: true })));
+  const [availabilityDays, setAvailabilityDays] = React.useState<DayAvailability[]>([]);
   const [form, setForm] = React.useState({
     serviceDate: '',
     serviceTime: '',
@@ -46,6 +55,21 @@ const BookingPage: React.FC = () => {
   React.useEffect(() => {
     loadBookings();
   }, [loadBookings]);
+
+  const loadAvailabilityRange = React.useCallback(async () => {
+    try {
+      const response = await api.get('/bookings/availability-range', {
+        params: { start: todayKey(), days: 14 },
+      });
+      setAvailabilityDays(response.data.availability || []);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not load upcoming availability');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadAvailabilityRange();
+  }, [loadAvailabilityRange]);
 
   React.useEffect(() => {
     const loadAvailability = async () => {
@@ -84,6 +108,7 @@ const BookingPage: React.FC = () => {
       setSlots(SERVICE_TIMES.map((time) => ({ time, available: true })));
       setMessage('Appointment request sent. Terry will confirm it soon.');
       await loadBookings();
+      await loadAvailabilityRange();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not book appointment');
     } finally {
@@ -106,6 +131,7 @@ const BookingPage: React.FC = () => {
       setCancelReason('');
       setMessage('Your appointment has been cancelled. Terry has been notified.');
       await loadBookings();
+      await loadAvailabilityRange();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not cancel appointment');
     } finally {
@@ -136,6 +162,56 @@ const BookingPage: React.FC = () => {
             </div>
           )}
           
+          <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-3 font-semibold text-gray-950">Pick an upcoming day</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {availabilityDays.map((day) => {
+                const selected = form.serviceDate === day.date;
+                const hasOpenings = day.openCount > 0;
+
+                return (
+                  <button
+                    key={day.date}
+                    type="button"
+                    onClick={() => setForm({ ...form, serviceDate: day.date, serviceTime: '' })}
+                    className={`rounded-lg border p-3 text-left transition ${selected ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'} ${!hasOpenings ? 'opacity-70' : ''}`}
+                  >
+                    <p className="font-semibold text-gray-950">{formatDate(day.date)}</p>
+                    <p className={`mt-1 text-sm ${hasOpenings ? 'text-green-700' : 'text-red-700'}`}>
+                      {hasOpenings ? `${day.openCount} open time${day.openCount === 1 ? '' : 's'}` : 'Fully booked'}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {form.serviceDate && (
+            <div className="mb-6 rounded-lg border border-gray-200 p-4">
+              <h3 className="mb-3 font-semibold text-gray-950">Choose a time</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {slots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    type="button"
+                    disabled={!slot.available}
+                    onClick={() => setForm({ ...form, serviceTime: slot.time })}
+                    className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      form.serviceTime === slot.time
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : slot.available
+                          ? 'border-green-200 bg-green-50 text-green-800 hover:border-green-500'
+                          : 'border-gray-200 bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {slot.time}
+                    <span className="block text-xs font-medium">{slot.available ? 'Open' : 'Booked'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -143,6 +219,7 @@ const BookingPage: React.FC = () => {
               </label>
               <input
                 type="date"
+                min={todayKey()}
                 value={form.serviceDate}
                 onChange={(e) => setForm({ ...form, serviceDate: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -199,7 +276,7 @@ const BookingPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !form.serviceDate || !form.serviceTime}
               className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Booking...' : 'Book Appointment'}
@@ -211,11 +288,11 @@ const BookingPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6 h-fit">
           <h3 className="text-lg font-bold mb-4 flex items-center">
             <Calendar className="mr-2" size={20} />
-            Available Slots
+            Selected Day
           </h3>
           <div className="space-y-2 text-sm text-gray-600">
             {!form.serviceDate ? (
-              <p>Choose a service date to see open times.</p>
+              <p>Choose a day to see open times.</p>
             ) : slots.map((slot) => (
               <div key={slot.time} className="flex items-center justify-between gap-3">
                 <span>{slot.time}</span>
@@ -231,7 +308,7 @@ const BookingPage: React.FC = () => {
               Heads up
             </p>
             <p className="text-sm text-blue-700">
-              Times marked booked already have a pending or confirmed appointment.
+              Times marked booked already have an appointment on Terry's schedule.
             </p>
           </div>
         </div>
@@ -255,7 +332,7 @@ const BookingPage: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <span className="text-sm font-medium capitalize text-blue-700">{booking.status}</span>
-                  {['pending', 'confirmed'].includes(booking.status) && (
+                  {['pending', 'confirmed'].includes(booking.status) ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -266,6 +343,8 @@ const BookingPage: React.FC = () => {
                     >
                       Cancel
                     </button>
+                  ) : (
+                    <span className="text-sm text-gray-500">No action available</span>
                   )}
                 </div>
               </div>

@@ -172,32 +172,44 @@ const HomePage: React.FC = () => {
       thumbnailUrl: selectedWork.thumbnailUrl,
     }, ...(selectedWork.additionalMedia || [])][selectedMediaIndex]
     : null;
+  const heroWork = items[0];
+  const heroImage = heroWork?.thumbnailUrl || heroWork?.mediaUrl;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <main>
-        <section className="border-b border-gray-200 bg-white">
-          <div className="container mx-auto grid grid-cols-1 items-center gap-10 py-14 lg:grid-cols-[minmax(0,1fr)_460px]">
-            <div>
-              <p className="text-blue-700 font-semibold mb-3">Independent auto mechanic</p>
-              <h1 className="mb-5 text-5xl font-bold leading-tight text-gray-950">
-                Practical vehicle service from Terry
+        <section className="relative overflow-hidden bg-gray-950 text-white">
+          <div className="absolute inset-0 opacity-20">
+            {heroImage ? (
+              <img src={heroImage} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full shop-panel" />
+            )}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-950/92 to-gray-950/55" />
+          <div className="container relative mx-auto grid min-h-[620px] grid-cols-1 items-center gap-10 py-14 lg:grid-cols-[minmax(0,1fr)_430px]">
+            <div className="max-w-3xl">
+              <div className="mb-5 inline-flex items-center gap-3 border-l-4 border-red-600 bg-white/10 px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-100">
+                Independent auto mechanic
+              </div>
+              <h1 className="brand-font mb-5 text-6xl font-extrabold uppercase leading-none text-white sm:text-7xl">
+                Honest repair work for everyday drivers
               </h1>
-              <p className="mb-8 max-w-2xl text-xl text-gray-600">
-                Appointment-based repair and maintenance for everyday drivers who want clear answers, honest scheduling, and dependable work.
+              <p className="mb-8 max-w-2xl text-xl leading-relaxed text-gray-200">
+                Terry handles appointment-based repair and maintenance with straight answers, practical next steps, and work he is willing to stand behind.
               </p>
               {(hoursText || availability?.businessPhone) && (
-                <div className="mb-8 grid gap-3 text-gray-700 sm:grid-cols-2">
+                <div className="mb-8 grid gap-3 text-gray-100 sm:grid-cols-2">
                   {hoursText && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-sm font-semibold text-gray-950">Available Hours</p>
-                      <p className="mt-1 text-sm">{hoursText}</p>
+                    <div className="rounded border border-white/15 bg-white/10 p-4 backdrop-blur">
+                      <p className="text-sm font-bold uppercase text-red-300">Available Hours</p>
+                      <p className="mt-1 text-sm text-gray-100">{hoursText}</p>
                     </div>
                   )}
                   {availability?.businessPhone && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-sm font-semibold text-gray-950">Call Terry</p>
-                      <a href={`tel:${availability.businessPhone}`} className="mt-1 block text-sm font-semibold text-blue-700">
+                    <div className="rounded border border-white/15 bg-white/10 p-4 backdrop-blur">
+                      <p className="text-sm font-bold uppercase text-red-300">Call Terry</p>
+                      <a href={`tel:${availability.businessPhone}`} className="mt-1 block text-sm font-semibold text-white">
                         {availability.businessPhone}
                       </a>
                     </div>
@@ -205,75 +217,78 @@ const HomePage: React.FC = () => {
                 </div>
               )}
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link to={primaryAction.to} className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700">
+                <Link to={primaryAction.to} className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-5 py-3 font-bold uppercase tracking-wide text-white shadow-lg shadow-red-950/30 hover:bg-red-600">
                   {primaryAction.icon}
                   {primaryAction.label}
                 </Link>
-                <a href="#work" className="inline-flex items-center justify-center gap-2 border border-gray-300 px-5 py-3 rounded-lg font-semibold text-gray-800 hover:bg-gray-50">
+                <a href="#work" className="inline-flex items-center justify-center gap-2 rounded border border-white/25 px-5 py-3 font-bold uppercase tracking-wide text-white hover:bg-white/10">
                   <Image size={20} />
                   View Work
                 </a>
               </div>
             </div>
 
-            <div className="rounded-lg bg-gray-950 p-7 text-white shadow-lg">
+            <div className="shop-card rounded bg-white p-6 text-gray-950">
               <div>
-                <ShieldCheck size={40} className="mb-5 text-blue-300" />
-                <h2 className="mb-3 text-2xl font-bold">What to expect</h2>
-                <p className="text-gray-300">
+                <ShieldCheck size={40} className="mb-5 text-red-700" />
+                <h2 className="brand-font mb-3 text-4xl font-extrabold uppercase">What to expect</h2>
+                <p className="text-gray-600">
                   Terry reviews service requests before adding them to the schedule, then follows up with practical next steps for your vehicle.
                 </p>
               </div>
               <div className="mt-8 space-y-3">
                 {trustPoints.map((point) => (
-                  <div key={point.title} className="flex gap-4 rounded-lg border border-white/15 p-4">
-                    <div className="text-blue-300 flex-shrink-0">{point.icon}</div>
+                  <div key={point.title} className="flex gap-4 rounded border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex-shrink-0 text-red-700">{point.icon}</div>
                     <div>
-                      <p className="font-semibold text-white">{point.title}</p>
-                      <p className="text-sm text-gray-300 mt-1">{point.description}</p>
+                      <p className="font-bold text-gray-950">{point.title}</p>
+                      <p className="mt-1 text-sm text-gray-600">{point.description}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+          <div className="relative shop-accent h-2" />
         </section>
 
-        <section id="services" className="container mx-auto py-14">
+        <section id="services" className="container mx-auto py-16">
           <div className="mb-6 max-w-3xl">
-            <p className="mb-2 font-semibold text-blue-700">Services</p>
-            <h2 className="text-3xl font-bold text-gray-950">Repair and maintenance Terry can review with you</h2>
+            <p className="mb-2 font-bold uppercase tracking-wide text-red-700">Services</p>
+            <h2 className="brand-font text-5xl font-extrabold uppercase text-gray-950">Repair and maintenance Terry can review with you</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
             {services.map((service) => (
-              <div key={service} className="flex gap-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                <CheckCircle className="text-green-600 flex-shrink-0" size={22} />
-                <p className="font-medium text-gray-800">{service}</p>
+              <div key={service} className="shop-card flex gap-3 rounded bg-white p-5">
+                <CheckCircle className="flex-shrink-0 text-red-700" size={22} />
+                <p className="font-bold text-gray-900">{service}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="work" className="container mx-auto py-14">
+        <section id="work" className="bg-gray-950 py-16 text-white">
+          <div className="container mx-auto">
           <div className="flex items-end justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-gray-950">Recent Shop Work</h2>
-              <p className="text-gray-600 mt-2">Photos and videos from jobs Terry has documented.</p>
+              <p className="mb-2 font-bold uppercase tracking-wide text-red-400">Work</p>
+              <h2 className="brand-font text-5xl font-extrabold uppercase text-white">Recent Shop Work</h2>
+              <p className="text-gray-300 mt-2">Photos and videos from jobs Terry has documented.</p>
             </div>
           </div>
 
           {items.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-600">
+            <div className="rounded border border-white/10 bg-white/10 p-8 text-center text-gray-300">
               Photos and videos from Terry's recent work will be added soon.
             </div>
           ) : (
             <div className="space-y-10">
               {galleryGroups.map((group) => (
                 <section key={group.category}>
-                  <h3 className="text-2xl font-bold text-gray-950 mb-4">{group.category}</h3>
+                  <h3 className="brand-font mb-4 text-3xl font-bold uppercase text-white">{group.category}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {group.items.map((item) => (
-                      <article key={item._id} className="overflow-hidden rounded-lg bg-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+                      <article key={item._id} className="overflow-hidden rounded bg-white text-gray-950 shadow-xl transition hover:-translate-y-0.5 hover:shadow-red-950/20">
                         <button
                           type="button"
                           onClick={() => openWorkDetails(item)}
@@ -293,7 +308,7 @@ const HomePage: React.FC = () => {
                           </div>
                         </button>
                         <div className="p-5">
-                          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">{getCategory(item.category)}</p>
+                          <p className="mb-2 text-sm font-bold uppercase tracking-wide text-red-700">{getCategory(item.category)}</p>
                           <h4 className="font-bold text-lg text-gray-950">{item.title}</h4>
                           {(item.additionalMedia?.length || 0) > 0 && (
                             <p className="mt-2 text-sm font-medium text-gray-500">{(item.additionalMedia?.length || 0) + 1} photos/videos</p>
@@ -307,13 +322,14 @@ const HomePage: React.FC = () => {
               ))}
             </div>
           )}
+          </div>
         </section>
 
         <section id="contact" className="container mx-auto py-14">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <div>
-              <p className="text-blue-700 font-semibold mb-3">Contact</p>
-              <h2 className="text-3xl font-bold text-gray-950 mb-4">Ask about service</h2>
+              <p className="mb-3 font-bold uppercase tracking-wide text-red-700">Contact</p>
+              <h2 className="brand-font mb-4 text-5xl font-extrabold uppercase text-gray-950">Ask about service</h2>
               <p className="text-gray-600 text-lg">
                 Send your vehicle details, service question, or scheduling note. Terry can follow up directly.
               </p>

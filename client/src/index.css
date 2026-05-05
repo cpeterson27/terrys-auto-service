@@ -1,11 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  @apply font-sans;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(153, 27, 27, 0.08), transparent 28rem),
+    linear-gradient(180deg, #f7f7f5 0%, #eef0f2 100%);
+  color: #111827;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-width: 320px;
+}
+
+h1,
+h2,
+h3,
+.brand-font {
+  font-family: 'Barlow Condensed', 'Inter', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 .container {
   @apply mx-auto px-4;
+  max-width: 1180px;
+}
+
+.shop-panel {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%) -12px 0/24px 24px,
+    linear-gradient(225deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%) -12px 0/24px 24px,
+    #111827;
+}
+
+.shop-card {
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.08);
+}
+
+.shop-accent {
+  background: linear-gradient(90deg, #991b1b, #dc2626);
+}
+
+.bg-blue-600 {
+  background-color: #b91c1c !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #991b1b !important;
+}
+
+.text-blue-600,
+.text-blue-700 {
+  color: #b91c1c !important;
+}
+
+.border-blue-600 {
+  border-color: #b91c1c !important;
+}
+
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: #dc2626 !important;
 }

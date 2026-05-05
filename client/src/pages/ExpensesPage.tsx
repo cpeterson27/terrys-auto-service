@@ -269,6 +269,35 @@ const ExpensesPage: React.FC = () => {
                 margin: 0;
                 padding: 32px;
               }
+              .report-actions {
+                align-items: center;
+                background: #ffffff;
+                border-bottom: 1px solid #d1d5db;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin: -32px -32px 28px;
+                padding: 14px 32px;
+                position: sticky;
+                top: 0;
+              }
+              .report-actions button {
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 700;
+                padding: 9px 14px;
+              }
+              .report-actions .primary {
+                background: #111827;
+                border-color: #111827;
+                color: #ffffff;
+              }
+              .report-actions .secondary {
+                background: #ffffff;
+                color: #111827;
+              }
               .header {
                 border-bottom: 2px solid #111827;
                 margin-bottom: 24px;
@@ -335,11 +364,17 @@ const ExpensesPage: React.FC = () => {
               }
               @media print {
                 body { padding: 20px; }
+                .report-actions { display: none; }
                 .summary { grid-template-columns: repeat(3, 1fr); }
               }
             </style>
           </head>
           <body>
+            <div class="report-actions">
+              <button class="primary" type="button" onclick="window.print()">Save as PDF</button>
+              <button class="secondary" type="button" onclick="window.print()">Print</button>
+              <button class="secondary" type="button" onclick="window.close()">Close</button>
+            </div>
             <div class="header">
               <h1>Terry's Auto Service Tax Report</h1>
               <p class="meta">Generated ${escapeHtml(generatedDate)}</p>
@@ -393,7 +428,6 @@ const ExpensesPage: React.FC = () => {
       reportWindow.document.write(reportHtml);
       reportWindow.document.close();
       reportWindow.focus();
-      reportWindow.print();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not create tax report');
     } finally {
@@ -413,7 +447,7 @@ const ExpensesPage: React.FC = () => {
             className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
           >
             <Printer size={20} />
-            <span>{reportLoading ? 'Preparing...' : 'Print Tax Report'}</span>
+            <span>{reportLoading ? 'Preparing...' : 'Tax Report'}</span>
           </button>
           <button
             type="button"

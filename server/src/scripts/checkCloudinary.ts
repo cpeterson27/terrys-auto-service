@@ -1,21 +1,20 @@
 import dotenv from 'dotenv';
 import { v2 as cloudinary } from 'cloudinary';
-import { getCloudinaryErrorMessage, isCloudinaryConfigured, uploadGalleryMedia } from '../utils/cloudinary';
+import {
+  getCloudinaryErrorMessage,
+  getConfiguredCloudinaryName,
+  isCloudinaryConfigured,
+  uploadGalleryMedia,
+} from '../utils/cloudinary';
 
 dotenv.config();
 
 const run = async () => {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  const cloudName = getConfiguredCloudinaryName();
 
   if (!isCloudinaryConfigured()) {
-    throw new Error('Cloudinary is missing CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET.');
+    throw new Error('Cloudinary is missing CLOUDINARY_URL or the three separate CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET values.');
   }
-
-  cloudinary.config({
-    cloud_name: cloudName,
-    api_key: process.env.CLOUDINARY_API_KEY?.trim(),
-    api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
-  });
 
   console.log(`Testing Cloudinary product environment: ${cloudName}`);
 

@@ -1,148 +1,166 @@
-# Terry Auto Service Platform
+# Terry's Auto Service Platform
 
-A professional business management platform built for Terry's auto service business. Built with the MERN stack (MongoDB, Express, React, Node.js).
+Business website, customer portal, and admin dashboard for Terry's Auto Service.
 
-## Features
+## What It Does
 
-### Admin Dashboard
-- **Invoice Management**: Create, view, send, and track invoices
-- **Expense Tracking**: Monitor business expenses
-- **Quick Invoice Generation**: Generate invoices from templates
-- **Email Marketing**: Send campaigns to customers
-
-### Customer Portal
-- **Account Access**: Login to view personal invoices
-- **Appointment Booking**: Schedule service appointments with availability calendar
-- **Contact Options**: Email or phone contact with business owner
-
-### Core Features
-- Secure JWT authentication
-- Professional modern UI with Tailwind CSS
-- Responsive design for all devices
-- Email notifications and confirmations
+- Public homepage with service information, contact form, and gallery media.
+- Customer signup/login with email verification, password reset, and customer portal.
+- Appointment booking, rescheduling, cancellation, and admin appointment management.
+- Admin dashboard for invoices, expenses, customers, messages, settings, and gallery content.
+- Gallery manager with Cloudinary image/video uploads and multiple media files per gallery card.
+- Resend-powered transactional email for verification, password reset, booking, and admin notifications.
+- Klaviyo email marketing opt-in during customer signup.
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Shadcn/ui
-- **Backend**: Node.js, Express, TypeScript
-- **Database**: MongoDB (Atlas)
-- **Email Service**: Resend or SendGrid
-- **Deployment**: Vercel (Frontend), Railway/Render (Backend)
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS, lucide-react, Vercel Analytics
+- Backend: Node.js 20, Express, TypeScript, MongoDB/Mongoose
+- Media: Cloudinary
+- Email: Resend
+- Marketing: Klaviyo
+- Deployment: Vercel for the client, Render-compatible Node server for the API
 
 ## Project Structure
 
-```
-terry-auto-service/
-├── client/                 # React frontend application
-│   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── utils/          # Utility functions
-│   │   └── App.tsx         # Main app component
-│   └── package.json
-├── server/                 # Express backend API
-│   ├── src/
-│   │   ├── routes/         # API routes
-│   │   ├── models/         # MongoDB schemas
-│   │   ├── controllers/    # Business logic
-│   │   ├── middleware/     # Auth, error handling
-│   │   └── app.ts          # Express app
-│   └── package.json
-├── shared/                 # Shared types and constants
-├── .gitignore
-├── package.json            # Root package.json
-└── README.md
+```text
+.
+├── client/                 # React/Vite frontend
+│   ├── src/components/     # Shared UI such as Navbar and ProtectedRoute
+│   ├── src/pages/          # Public, customer, and admin pages
+│   └── src/lib/api.ts      # Axios API client
+├── server/                 # Express API
+│   ├── src/models/         # Mongoose models
+│   ├── src/routes/         # API routes
+│   ├── src/controllers/    # Request handlers and business workflow logic
+│   ├── src/scripts/        # Admin seed, smoke test, Cloudinary check
+│   └── src/utils/          # Email, invoice, Klaviyo, Cloudinary helpers
+└── package.json            # Root scripts
 ```
 
-## Getting Started
+## Environment Variables
 
-### Prerequisites
-- Node.js 18+
-- MongoDB Atlas account (free tier available)
-- Git
+Create `server/.env`:
 
-### Installation
-
-```bash
-# Install all dependencies
-npm run install:all
-
-# Or install individually
-npm install
-npm install --prefix client
-npm install --prefix server
-```
-
-### Environment Setup
-
-Create `.env` files for both client and server:
-
-**server/.env**
-```
-MONGODB_URI=your_mongodb_atlas_uri
-JWT_SECRET=your_jwt_secret_key
+```env
 NODE_ENV=development
 PORT=5000
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=replace-with-a-long-random-secret
 FRONTEND_URL=http://localhost:3000
-RESEND_API_KEY=your_resend_api_key
+
+RESEND_API_KEY=re_...
+ADMIN_EMAIL=terry.tucker63@yahoo.com
+ADMIN_PASSWORD=replace-for-seed-and-smoke-tests
+ADMIN_PHONE=
+BUSINESS_PHONE=
+
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+# Or use CLOUDINARY_URL instead of the three separate Cloudinary values.
+
+KLAVIYO_API_KEY=pk_or_private_key_from_klaviyo
+KLAVIYO_MARKETING_LIST_ID=list_id_for_marketing_subscribers
 ```
 
-**client/.env.local**
-```
+Create `client/.env.local`:
+
+```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### Development
+For production, set `FRONTEND_URL` to the live site origin, and set `VITE_API_URL` to the live API URL ending in `/api`.
+
+## Klaviyo Welcome Email Setup
+
+Use Klaviyo's **Create welcome series** option under Flows.
+
+The app sends opted-in signup customers to Klaviyo only when they check:
+
+```text
+Yes, I want to receive deals, service reminders, and special offers from Terry's Auto Service.
+```
+
+The backend subscribes that customer to `KLAVIYO_MARKETING_LIST_ID`. In Klaviyo, set the welcome flow trigger to that same list, usually shown as **When someone subscribes to List** or **Subscribed to newsletter/list**. Build the welcome email inside that flow and turn it live when ready.
+
+## Local Development
+
+Install dependencies:
 
 ```bash
-# Run both client and server concurrently
-npm run dev
+npm run install:all
+```
 
-# Or run separately
+Run client and server together:
+
+```bash
+npm run dev
+```
+
+Or run them separately:
+
+```bash
 npm run dev:client
 npm run dev:server
 ```
 
-The application will be available at `http://localhost:3000`
+Default local URLs:
 
-## Building for Production
+- Client: `http://localhost:3000`
+- API: `http://localhost:5000/api`
+- Health check: `http://localhost:5000/api/health`
+
+## Useful Commands
 
 ```bash
 npm run build
+npm run build:client
+npm run build:server
+npm start
+npm run seed:admin --prefix server
+npm run check:cloudinary --prefix server
+npm run smoke:api --prefix server
+npm run test:schemas --prefix server
 ```
 
-## Deployment
+Notes:
 
-### Frontend (Vercel)
-1. Push to GitHub
-2. Connect repo to Vercel
-3. Auto-deploys on push
+- `seed:admin` requires `ADMIN_PASSWORD` and creates/updates the Terry admin account.
+- `check:cloudinary` verifies Cloudinary credentials and upload permissions.
+- `smoke:api` requires `ADMIN_PASSWORD` and exercises the API against the configured database/API URL.
 
-### Backend (Railway or Render)
-1. Create account on Railway or Render
-2. Connect GitHub repo
-3. Set environment variables
-4. Deploy
+## Deployment Checklist
 
-### Database (MongoDB Atlas)
-1. Create free cluster on MongoDB Atlas
-2. Create database user
-3. Get connection string
-4. Add to backend .env
+- Client deployed on Vercel with `VITE_API_URL` set to the production API.
+- API deployed with all server environment variables set.
+- MongoDB Atlas connection string added to the API environment.
+- Resend API key configured and sending domain verified.
+- Cloudinary credentials configured and `npm run check:cloudinary --prefix server` passes.
+- Klaviyo API key and marketing list ID configured.
+- Klaviyo welcome flow uses the same list ID as `KLAVIYO_MARKETING_LIST_ID`.
+- `FRONTEND_URL` includes the live website origin for CORS and email links.
+- Run `npm run build` before handoff.
 
-## Free Hosting & Domain Strategy
+## Terry Handoff Notes
 
-- **Frontend**: Vercel (free tier)
-- **Backend**: Railway or Render (free tier with credits)
-- **Database**: MongoDB Atlas (512MB free tier)
-- **Email**: Resend (100 emails/day free)
-- **Domain**: Use subdomain on Vercel or Freenom for testing
+Terry can use the admin dashboard to manage:
+
+- Appointments from `/dashboard`
+- Invoices from `/invoices`
+- Expenses from `/expenses`
+- Customers from `/customers`
+- Homepage/gallery media from `/gallery`
+- Contact form submissions from `/messages`
+- Business profile/settings from `/profile`
+
+Customer-facing flows are:
+
+- Signup/login at `/login`
+- Email verification from the emailed link
+- Customer portal at `/portal`
+- Booking management at `/bookings`
 
 ## License
 
-Proprietary - Built for Terry's Auto Service
-
-## Support
-
-For questions or issues, contact the development team.
+Proprietary. Built for Terry's Auto Service.

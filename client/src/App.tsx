@@ -22,7 +22,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
 function App() {
-  const { user } = useAuthStore();
+  const { hydrateSession, user } = useAuthStore();
+
+  React.useEffect(() => {
+    hydrateSession();
+  }, [hydrateSession]);
 
   return (
     <Router>

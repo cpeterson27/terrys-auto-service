@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '../lib/api';
 
 export interface AuthUser {
   userId: string;
@@ -11,8 +12,9 @@ export interface AuthUser {
 
 interface AuthStore {
   user: AuthUser | null;
-  token: string | null;
-  login: (user: AuthUser, token: string) => void;
+  sessionLoading: boolean;
+  hydrateSession: () => Promise<void>;
+  login: (user: AuthUser) => void;
   logout: () => void;
   setUser: (user: AuthUser) => void;
 }
@@ -39,7 +41,6 @@ const getStoredUser = () => {
   }
 
   localStorage.removeItem('user');
-  localStorage.removeItem('token');
   return null;
 };
 
@@ -47,22 +48,40 @@ const storedUser = getStoredUser();
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user: storedUser,
-  token: storedUser ? localStorage.getItem('token') : null,
+  sessionLoading: true,
 
-  login: (user: AuthUser, token: string) => {
+  hydrateSession: async () => {
+    try {
+      const response = await api.post('/auth/refresh-token');
+      const user = response.data.user;
+
+      if (isAuthUser(user)) {
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ user, sessionLoading: false });
+        return;
+      }
+    } catch {
+      localStorage.removeItem('user');
+    }
+
+    set({ user: null, sessionLoading: false });
+  },
+
+  login: (user: AuthUser) => {
     if (!isAuthUser(user)) {
       return;
     }
 
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
-    set({ user, token });
+    set({ user, sessionLoading: false });
   },
 
   logout: () => {
+    api.post('/auth/logout').catch(() => {
+      // Local logout should still complete if the network request fails.
+    });
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    set({ user: null, token: null });
+    set({ user: null, sessionLoading: false });
   },
 
   setUser: (user: AuthUser) => {

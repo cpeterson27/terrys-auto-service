@@ -102,6 +102,12 @@ const GalleryPage: React.FC = () => {
 
   const galleryGroups = React.useMemo(() => groupGalleryItems(items), [items]);
 
+  const closeEditModal = React.useCallback(() => {
+    setEditingItem(null);
+    setAdditionalFiles([]);
+    setIsDraggingAdditionalMedia(false);
+  }, []);
+
   React.useEffect(() => {
     if (form.mediaFiles.length === 0) {
       setMediaPreviewUrls([]);
@@ -140,6 +146,22 @@ const GalleryPage: React.FC = () => {
       setSearchParams({}, { replace: true });
     }
   }, [items, searchParams, setSearchParams]);
+
+  React.useEffect(() => {
+    if (!editingItem) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeEditModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closeEditModal, editingItem]);
 
   const resetUploadForm = () => {
     setForm({
@@ -536,23 +558,23 @@ const GalleryPage: React.FC = () => {
       )}
 
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <form onSubmit={saveEdit} className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-3 py-3 sm:px-4 sm:py-4">
+          <form onSubmit={saveEdit} className="flex h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl sm:h-[calc(100dvh-2rem)]">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Edit Media</h2>
                 <p className="mt-1 text-sm text-gray-600">Update how this item appears in Terry's public gallery.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setEditingItem(null)}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                onClick={closeEditModal}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 aria-label="Close edit media"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
                 <input
@@ -709,10 +731,10 @@ const GalleryPage: React.FC = () => {
                 </span>
               </label>
             </div>
-            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+            <div className="flex shrink-0 justify-end gap-3 border-t border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
               <button
                 type="button"
-                onClick={() => setEditingItem(null)}
+                onClick={closeEditModal}
                 className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel

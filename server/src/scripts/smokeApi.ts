@@ -22,28 +22,35 @@ const main = async () => {
   const runId = Date.now();
   const customerEmail = `smoke.customer.${runId}@example.com`;
 
-  const customerResponse = await axios.post(`${API_URL}/auth/register`, {
+  const customer = await User.create({
     name: 'Smoke Test Customer',
     email: customerEmail,
     password: 'password123',
     phone: '555-0199',
+    role: 'customer',
+    emailVerified: true,
   });
-  const customerToken = customerResponse.data.accessToken;
-  const customerId = customerResponse.data.user.userId;
+  const customerId = customer._id.toString();
+
+  const customerResponse = await axios.post(`${API_URL}/auth/login`, {
+    email: customerEmail,
+    password: 'password123',
+  });
+  const customerCookie = customerResponse.headers['set-cookie']?.map((cookie) => cookie.split(';')[0]).join('; ');
 
   const adminResponse = await axios.post(`${API_URL}/auth/login`, {
     email: ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
   });
-  const adminToken = adminResponse.data.accessToken;
+  const adminCookie = adminResponse.headers['set-cookie']?.map((cookie) => cookie.split(';')[0]).join('; ');
 
   const customerApi = axios.create({
     baseURL: API_URL,
-    headers: { Authorization: `Bearer ${customerToken}` },
+    headers: { Cookie: customerCookie },
   });
   const adminApi = axios.create({
     baseURL: API_URL,
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: { Cookie: adminCookie },
   });
 
   const bookingResponse = await customerApi.post('/bookings', {

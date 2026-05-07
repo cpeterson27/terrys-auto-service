@@ -23,8 +23,8 @@ const VerifyEmailPage: React.FC = () => {
 
       try {
         const response = await api.get('/auth/verify-email', { params: { token } });
-        const { user, accessToken } = response.data;
-        login(user, accessToken);
+        const { user } = response.data;
+        login(user);
         setStatus('success');
         setMessage(response.data.message || 'Your email has been verified. Redirecting...');
         setTimeout(() => navigate(user.role === 'admin' ? '/dashboard' : '/portal'), 1200);

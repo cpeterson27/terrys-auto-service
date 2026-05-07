@@ -2,6 +2,19 @@ import jwt from 'jsonwebtoken';
 import { Response, NextFunction } from 'express';
 import { JWTPayload } from '../types';
 
+const getCookieValue = (cookieHeader: string | undefined, name: string) => {
+  if (!cookieHeader) {
+    return '';
+  }
+
+  const cookie = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+
+  return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : '';
+};
+
 export interface AuthRequest {
   headers?: any;
   body?: any;
@@ -12,7 +25,8 @@ export interface AuthRequest {
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers?.authorization?.replace('Bearer ', '');
+    const bearerToken = req.headers?.authorization?.replace('Bearer ', '');
+    const token = bearerToken || getCookieValue(req.headers?.cookie, 'accessToken');
     
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });

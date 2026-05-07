@@ -89,8 +89,8 @@ const LoginPage: React.FC = () => {
           token: searchParams.get('token'),
           password,
         });
-        const { user, accessToken } = response.data;
-        login(user, accessToken);
+        const { user } = response.data;
+        login(user);
         setMessage(response.data.message || 'Password updated. Redirecting...');
         setTimeout(() => navigate('/'), 900);
         return;
@@ -110,8 +110,8 @@ const LoginPage: React.FC = () => {
         return;
       }
 
-      const { user, accessToken } = response.data;
-      login(user, accessToken);
+      const { user } = response.data;
+      login(user);
       navigate('/');
     } catch (err: any) {
       const fallbackError = mode === 'login'

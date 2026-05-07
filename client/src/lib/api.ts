@@ -2,24 +2,45 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
+  withCredentials: true,
 });
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+    const authUrl = originalRequest?.url || '';
+    const isSessionRequest = [
+      '/auth/login',
+      '/auth/logout',
+      '/auth/register',
+      '/auth/refresh-token',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/resend-verification',
+      '/auth/verify-email',
+    ].some((path) => authUrl.includes(path));
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isSessionRequest) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshResponse = await api.post('/auth/refresh-token');
+
+        if (refreshResponse.data.user) {
+          localStorage.setItem('user', JSON.stringify(refreshResponse.data.user));
+        }
+
+        return api(originalRequest);
+      } catch {
+        localStorage.removeItem('user');
+
+        if (window.location.pathname !== '/login') {
+          window.location.assign('/login');
+        }
+      }
+    } else if (error.response?.status === 401 && !isSessionRequest) {
       localStorage.removeItem('user');
-      localStorage.removeItem('token');
 
       if (window.location.pathname !== '/login') {
         window.location.assign('/login');

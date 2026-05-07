@@ -153,6 +153,29 @@ export const customerBookingCancellationTemplate = (
   `;
 };
 
+export const newCustomerSignupTemplate = (
+  customerName: string,
+  customerEmail: string,
+  customerPhone: string,
+  marketingOptIn: boolean
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>New Customer Signup</h2>
+      <p>A new customer created an account on Terry's Auto Service.</p>
+      <p><strong>Name:</strong> ${customerName}</p>
+      <p><strong>Email:</strong> ${customerEmail}</p>
+      <p><strong>Phone:</strong> ${customerPhone}</p>
+      <p><strong>Marketing opt-in:</strong> ${marketingOptIn ? 'Yes' : 'No'}</p>
+      <p>The customer has been sent an email verification link before they can log in.</p>
+      <hr>
+      <footer style="font-size: 12px; color: #666;">
+        <p>Terry's Auto Service</p>
+      </footer>
+    </div>
+  `;
+};
+
 export const emailVerificationTemplate = (
   customerName: string,
   verificationUrl: string

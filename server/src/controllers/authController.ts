@@ -4,7 +4,12 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { AuthRequest, generateTokens } from '../middleware/auth';
 import { JWTPayload } from '../types';
-import { emailVerificationTemplate, passwordResetTemplate, sendEmail } from '../utils/emailService';
+import {
+  emailVerificationTemplate,
+  newCustomerSignupTemplate,
+  passwordResetTemplate,
+  sendEmail,
+} from '../utils/emailService';
 import { subscribeProfileToKlaviyo } from '../utils/klaviyo';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -177,6 +182,18 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       console.error('Verification email failed during registration:', emailError);
       return res.status(502).json({
         error: 'We could not send a verification email to that address. Please check the email and try again.',
+      });
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+
+    if (adminEmail) {
+      sendEmail(
+        adminEmail,
+        'New customer signup on Terry Auto Service',
+        newCustomerSignupTemplate(user.name, user.email, user.phone || '', marketingOptIn === true)
+      ).catch((emailError) => {
+        console.error('Admin signup notification failed during registration:', emailError);
       });
     }
 

@@ -1,8 +1,73 @@
 import { Request, Response, NextFunction } from 'express';
 import { ContactMessage } from '../models/ContactMessage';
 import { AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../utils/emailService';
+import { sendSms } from '../utils/smsService';
 
 const recentSubmissions = new Map<string, number>();
+
+const escapeHtml = (value: string): string => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const notifyTerry = async (contact: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}) => {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  const adminPhone = process.env.ADMIN_PHONE?.trim() || process.env.BUSINESS_PHONE?.trim();
+  const dashboardUrl = `${(process.env.FRONTEND_URL || 'https://terrysauto.shop').split(',')[0].trim()}/messages`;
+  const safe = {
+    name: escapeHtml(contact.name),
+    email: escapeHtml(contact.email),
+    phone: escapeHtml(contact.phone || 'Not provided'),
+    subject: escapeHtml(contact.subject),
+    message: escapeHtml(contact.message).replace(/\n/g, '<br>'),
+  };
+  const notifications: Promise<void>[] = [];
+  const emailSubject = contact.subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 140);
+
+  if (adminEmail) {
+    notifications.push(sendEmail(
+      adminEmail,
+      `New website message: ${emailSubject}`,
+      `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto">
+        <h2>New website message</h2>
+        <p><strong>From:</strong> ${safe.name}</p>
+        <p><strong>Email:</strong> <a href="mailto:${safe.email}">${safe.email}</a></p>
+        <p><strong>Phone:</strong> ${safe.phone}</p>
+        <p><strong>Subject:</strong> ${safe.subject}</p>
+        <div style="padding:16px;background:#f3f4f6;border-radius:6px">${safe.message}</div>
+        <p><a href="${dashboardUrl}">Open messages dashboard</a></p>
+      </div>`
+    ));
+  } else {
+    console.warn('⚠️  ADMIN_EMAIL not configured. Contact email notification not sent.');
+  }
+
+  if (adminPhone) {
+    const preview = contact.message.replace(/\s+/g, ' ').trim().slice(0, 240);
+    notifications.push(sendSms(
+      adminPhone,
+      `New Terry's Auto Service message from ${contact.name}: ${contact.subject}. ${preview}${contact.message.length > 240 ? '…' : ''} Reply: ${contact.phone || contact.email}`
+    ));
+  } else {
+    console.warn('⚠️  ADMIN_PHONE or BUSINESS_PHONE not configured. Contact text notification not sent.');
+  }
+
+  const results = await Promise.allSettled(notifications);
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.error('Contact notification failed:', result.reason);
+    }
+  });
+};
 
 export const createContactMessage = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -25,6 +90,8 @@ export const createContactMessage = async (req: Request, res: Response, next: Ne
     await ContactMessage.create({ name, email, phone, subject, message });
 
     recentSubmissions.set(ipAddress, Date.now());
+
+    await notifyTerry({ name, email, phone, subject, message });
 
     res.status(201).json({ success: true });
   } catch (error) {

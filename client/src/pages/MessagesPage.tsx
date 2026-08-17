@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, MessageCircle, Phone, Reply } from 'lucide-react';
 import { api, formatDate } from '../lib/api';
 
 interface ContactMessage {
@@ -37,6 +37,17 @@ const MessagesPage: React.FC = () => {
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not update message');
     }
+  };
+
+  const emailReplyUrl = (item: ContactMessage) => {
+    const subject = `Re: ${item.subject.replace(/[\r\n]+/g, ' ')}`;
+    const body = `Hi ${item.name},\n\n\n\n--- Original website message ---\n${item.message}`;
+    return `mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const phoneUrl = (phone: string, scheme: 'tel' | 'sms') => {
+    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    return `${scheme}:${normalizedPhone}`;
   };
 
   return (
@@ -82,6 +93,36 @@ const MessagesPage: React.FC = () => {
                 </select>
               </div>
               <p className="text-gray-700 whitespace-pre-wrap">{item.message}</p>
+              <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-200 pt-5">
+                <a
+                  href={emailReplyUrl(item)}
+                  onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
+                  className="inline-flex items-center gap-2 rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600"
+                >
+                  <Reply size={18} />
+                  Reply by email
+                </a>
+                {item.phone && (
+                  <>
+                    <a
+                      href={phoneUrl(item.phone, 'sms')}
+                      onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
+                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
+                    >
+                      <MessageCircle size={18} />
+                      Text customer
+                    </a>
+                    <a
+                      href={phoneUrl(item.phone, 'tel')}
+                      onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
+                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
+                    >
+                      <Phone size={18} />
+                      Call customer
+                    </a>
+                  </>
+                )}
+              </div>
             </article>
           ))}
         </div>

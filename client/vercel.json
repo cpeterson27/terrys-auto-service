@@ -7,6 +7,15 @@
   ],
   "headers": [
     {
+      "source": "/:privatePath(login|reset-password|verify-email|dashboard|invoices|expenses|customers|gallery|messages|profile|portal|bookings)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {

@@ -52,8 +52,13 @@ FRONTEND_URL=http://localhost:3000
 RESEND_API_KEY=re_...
 ADMIN_EMAIL=terry.tucker63@yahoo.com
 ADMIN_PASSWORD=replace-for-seed-and-smoke-tests
-ADMIN_PHONE=
+ADMIN_PHONE=+1... # Terry's mobile number in E.164 format
 BUSINESS_PHONE=
+
+# Immediate SMS alerts for new website messages
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+TWILIO_PHONE_NUMBER=+1... # SMS-capable Twilio number
 
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
@@ -136,6 +141,7 @@ Notes:
 - API deployed with all server environment variables set.
 - MongoDB Atlas connection string added to the API environment.
 - Resend API key configured and sending domain verified.
+- Twilio credentials and Terry's `ADMIN_PHONE` configured for new-message text alerts.
 - Cloudinary credentials configured and `npm run check:cloudinary --prefix server` passes.
 - Klaviyo API key and marketing list ID configured.
 - Klaviyo welcome flow uses the same list ID as `KLAVIYO_MARKETING_LIST_ID`.

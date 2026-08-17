@@ -1,10 +1,10 @@
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-
 export const sendEmail = async (
   to: string,
   subject: string,
   html: string
 ): Promise<void> => {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim();
+
   if (!RESEND_API_KEY) {
     console.warn('⚠️  RESEND_API_KEY not configured. Email not sent.');
     return;

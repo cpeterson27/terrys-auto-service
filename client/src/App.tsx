@@ -20,6 +20,7 @@ import CustomersPage from './pages/CustomersPage';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
+import SeoManager from './components/SeoManager';
 
 function App() {
   const { hydrateSession, user } = useAuthStore();
@@ -30,6 +31,7 @@ function App() {
 
   return (
     <Router>
+      <SeoManager />
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <Routes>

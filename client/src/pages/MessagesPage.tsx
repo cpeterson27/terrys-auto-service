@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, MessageCircle, Phone, Reply } from 'lucide-react';
+import { Mail, MessageCircle, Phone, Reply, Send, X } from 'lucide-react';
 import { api, formatDate } from '../lib/api';
 
 interface ContactMessage {
@@ -11,11 +11,16 @@ interface ContactMessage {
   message: string;
   status: 'new' | 'read' | 'archived';
   createdAt: string;
+  replies?: Array<{ body: string; sentAt: string; sentBy?: string }>;
 }
 
 const MessagesPage: React.FC = () => {
   const [messages, setMessages] = React.useState<ContactMessage[]>([]);
   const [error, setError] = React.useState('');
+  const [replyingTo, setReplyingTo] = React.useState<string | null>(null);
+  const [replyBody, setReplyBody] = React.useState('');
+  const [sendingReply, setSendingReply] = React.useState(false);
+  const [success, setSuccess] = React.useState('');
 
   const loadMessages = React.useCallback(async () => {
     try {
@@ -76,6 +81,29 @@ const MessagesPage: React.FC = () => {
     }
   };
 
+  const sendReply = async (item: ContactMessage) => {
+    const body = replyBody.trim();
+    if (!body) {
+      setError('Write a reply before sending.');
+      return;
+    }
+
+    setSendingReply(true);
+    setError('');
+    setSuccess('');
+    try {
+      await api.post(`/contact/${item._id}/reply`, { body });
+      setReplyingTo(null);
+      setReplyBody('');
+      setSuccess(`Email sent to ${item.name} at ${item.email}.`);
+      await loadMessages();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not send the email. Please try again.');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -86,6 +114,12 @@ const MessagesPage: React.FC = () => {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
+          {success}
         </div>
       )}
 
@@ -119,14 +153,74 @@ const MessagesPage: React.FC = () => {
                 </select>
               </div>
               <p className="text-gray-700 whitespace-pre-wrap">{item.message}</p>
+              {item.replies && item.replies.length > 0 && (
+                <div className="mt-5 space-y-3">
+                  <p className="text-sm font-bold uppercase tracking-wide text-gray-500">Sent replies</p>
+                  {item.replies.map((reply, index) => (
+                    <div key={`${reply.sentAt}-${index}`} className="rounded border border-green-200 bg-green-50 p-4">
+                      <p className="whitespace-pre-wrap text-gray-800">{reply.body}</p>
+                      <p className="mt-2 text-xs text-gray-500">Sent {formatDate(reply.sentAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {replyingTo === item._id && (
+                <div className="mt-6 rounded border border-gray-300 bg-gray-50 p-4">
+                  <label htmlFor={`reply-${item._id}`} className="block font-bold text-gray-950">
+                    Email {item.name} at {item.email}
+                  </label>
+                  <textarea
+                    id={`reply-${item._id}`}
+                    value={replyBody}
+                    onChange={(event) => setReplyBody(event.target.value)}
+                    rows={6}
+                    maxLength={5000}
+                    autoFocus
+                    placeholder={`Hi ${item.name},`}
+                    className="mt-3 w-full rounded border border-gray-300 p-3 text-gray-900 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  />
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => sendReply(item)}
+                      disabled={sendingReply || !replyBody.trim()}
+                      className="inline-flex items-center gap-2 rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Send size={18} />
+                      {sendingReply ? 'Sending…' : 'Send email'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setReplyingTo(null); setReplyBody(''); }}
+                      disabled={sendingReply}
+                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-100"
+                    >
+                      <X size={18} />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-200 pt-5">
-                <a
-                  href={emailReplyUrl(item)}
-                  onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyingTo(item._id);
+                    setReplyBody(`Hi ${item.name},\n\n`);
+                    setError('');
+                    setSuccess('');
+                  }}
                   className="inline-flex items-center gap-2 rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600"
                 >
                   <Reply size={18} />
-                  Reply by email
+                  Reply in dashboard
+                </button>
+                <a
+                  href={emailReplyUrl(item)}
+                  className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
+                >
+                  <Mail size={18} />
+                  Open email app
                 </a>
                 {item.phone && (
                   <>

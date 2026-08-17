@@ -7,6 +7,7 @@ interface IContactMessageDocument extends Document {
   subject: string;
   message: string;
   status: 'new' | 'read' | 'archived';
+  replies: Array<{ body: string; sentAt: Date; sentBy?: string }>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -44,6 +45,12 @@ const contactMessageSchema: Schema = new Schema(
       enum: ['new', 'read', 'archived'],
       default: 'new',
     },
+    replies: [{
+      _id: false,
+      body: { type: String, required: true, trim: true },
+      sentAt: { type: Date, required: true },
+      sentBy: { type: String, trim: true },
+    }],
   },
   { timestamps: true }
 );

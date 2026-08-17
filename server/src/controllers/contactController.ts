@@ -127,3 +127,47 @@ export const updateContactMessageStatus = async (req: AuthRequest, res: Response
     next(error);
   }
 };
+
+export const replyToContactMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+
+    if (!body || body.length > 5000) {
+      return res.status(400).json({ error: 'Reply must be between 1 and 5,000 characters' });
+    }
+
+    const contact = await ContactMessage.findById(req.params.id);
+    if (!contact) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL?.trim() || req.user?.email;
+    if (!adminEmail) {
+      return res.status(503).json({ error: 'Admin reply email is not configured' });
+    }
+
+    const cleanSubject = contact.subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 140);
+    const safeBody = escapeHtml(body).replace(/\n/g, '<br>');
+    const safeName = escapeHtml(contact.name);
+
+    await sendEmail(
+      contact.email,
+      `Re: ${cleanSubject}`,
+      `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto">
+        <p>Hi ${safeName},</p>
+        <div>${safeBody}</div>
+        <hr style="margin-top:24px;border:0;border-top:1px solid #ddd">
+        <p style="color:#555">Terry's Auto Service</p>
+      </div>`,
+      { replyTo: adminEmail, required: true }
+    );
+
+    contact.replies.push({ body, sentAt: new Date(), sentBy: req.user?.email });
+    contact.status = 'read';
+    await contact.save();
+
+    res.json({ message: contact, success: true });
+  } catch (error) {
+    next(error);
+  }
+};

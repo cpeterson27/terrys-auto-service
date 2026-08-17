@@ -1,12 +1,16 @@
 export const sendEmail = async (
   to: string,
   subject: string,
-  html: string
+  html: string,
+  options: { replyTo?: string; required?: boolean } = {}
 ): Promise<void> => {
   const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim();
 
   if (!RESEND_API_KEY) {
     console.warn('⚠️  RESEND_API_KEY not configured. Email not sent.');
+    if (options.required) {
+      throw new Error('Email service is not configured');
+    }
     return;
   }
 
@@ -22,6 +26,7 @@ export const sendEmail = async (
         to,
         subject,
         html,
+        ...(options.replyTo ? { reply_to: options.replyTo } : {}),
       }),
     });
 

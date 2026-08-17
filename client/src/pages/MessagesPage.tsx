@@ -50,6 +50,32 @@ const MessagesPage: React.FC = () => {
     return `${scheme}:${normalizedPhone}`;
   };
 
+  const formatPhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    const usDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+
+    if (usDigits.length === 10) {
+      return `(${usDigits.slice(0, 3)}) ${usDigits.slice(3, 6)}-${usDigits.slice(6)}`;
+    }
+
+    return phone;
+  };
+
+  const confirmText = (event: React.MouseEvent<HTMLAnchorElement>, item: ContactMessage) => {
+    const confirmed = window.confirm(
+      `Open a text message to ${item.name} at ${formatPhone(item.phone || '')}?\n\nThis number was entered by the customer and has not been independently verified.`
+    );
+
+    if (!confirmed) {
+      event.preventDefault();
+      return;
+    }
+
+    if (item.status === 'new') {
+      void updateStatus(item._id, 'read');
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -106,11 +132,11 @@ const MessagesPage: React.FC = () => {
                   <>
                     <a
                       href={phoneUrl(item.phone, 'sms')}
-                      onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
+                      onClick={(event) => confirmText(event, item)}
                       className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
                     >
                       <MessageCircle size={18} />
-                      Text customer
+                      Text {formatPhone(item.phone)}
                     </a>
                     <a
                       href={phoneUrl(item.phone, 'tel')}

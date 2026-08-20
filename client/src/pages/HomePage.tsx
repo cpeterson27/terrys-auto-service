@@ -121,14 +121,18 @@ const HomePage:React.FC=()=>{
       </section>
     </main>
 
-    {selectedWork&&<div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="work-title" onMouseDown={event=>{if(event.currentTarget===event.target)setSelectedWork(null);}}>
-      <div className="grid max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-md bg-white shadow-2xl lg:grid-cols-[minmax(0,1.7fr)_390px]">
-        <div className="flex min-h-[360px] items-center justify-center bg-[#050811]">{selectedMedia?.mediaType==='video'?<video src={selectedMedia.mediaUrl} poster={selectedMedia.thumbnailUrl} controls className="max-h-[82vh] w-full"/>:<img src={selectedMedia?.mediaUrl} alt={selectedWork.title} className="max-h-[82vh] w-full object-contain"/>}</div>
-        <aside className="relative overflow-y-auto p-7 text-gray-950"><button type="button" onClick={()=>setSelectedWork(null)} className="absolute right-5 top-5 rounded p-2 text-gray-500 hover:bg-gray-100" aria-label="Close"><X/></button>
-          <p className="mt-10 text-xs font-extrabold uppercase tracking-widest text-red-700">{getCategory(selectedWork.category)}</p><h2 id="work-title" className="mt-2 text-4xl font-extrabold uppercase">{selectedWork.title}</h2><p className="mt-4 text-sm leading-6 text-gray-600">{selectedWork.description||"Service work from Terry's shop."}</p>
-          {(selectedWork.additionalMedia?.length||0)>0&&<div className="mt-6 grid grid-cols-4 gap-2">{[{mediaType:selectedWork.mediaType,mediaUrl:selectedWork.mediaUrl,thumbnailUrl:selectedWork.thumbnailUrl},...(selectedWork.additionalMedia||[])].map((media,index)=><button key={`${media.mediaUrl}-${index}`} type="button" onClick={()=>setSelectedMediaIndex(index)} className={`aspect-square overflow-hidden rounded border-2 ${selectedMediaIndex===index?'border-red-600':'border-gray-200'}`}><img src={media.thumbnailUrl||media.mediaUrl} alt="" className="h-full w-full object-cover"/></button>)}</div>}
-          <Link to={user?.role==='admin'?`/gallery?edit=${selectedWork._id}`:primaryAction.to} className="mt-7 inline-flex items-center gap-2 rounded bg-red-600 px-4 py-3 text-sm font-bold text-white">{user?.role==='admin'?<Pencil size={17}/>:<Calendar size={17}/>} {user?.role==='admin'?'Edit in gallery':primaryAction.label}</Link>
-        </aside>
+    {selectedWork&&<div className="work-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="work-title" onMouseDown={event=>{if(event.currentTarget===event.target)setSelectedWork(null);}}>
+      <div className="work-modal">
+        <header className="work-modal-header"><div><span>Shop work</span><strong>Terry's Auto Service</strong></div><button type="button" onClick={()=>setSelectedWork(null)} aria-label="Close work details"><X size={21}/></button></header>
+        <div className="work-modal-main">
+          <div className="work-media-stage">{selectedMedia?.mediaType==='video'?<video src={selectedMedia.mediaUrl} poster={selectedMedia.thumbnailUrl} controls/>:<img src={selectedMedia?.mediaUrl} alt={selectedWork.title}/>}<span className="work-media-count">{selectedMediaIndex+1} / {(selectedWork.additionalMedia?.length||0)+1}</span></div>
+          <aside className="work-modal-details">
+            <div><p className="work-modal-kicker">{getCategory(selectedWork.category)}</p><h2 id="work-title">{selectedWork.title}</h2><div className="work-title-rule"/><p className="work-description">{selectedWork.description||"A closer look at service work completed by Terry's Auto Service."}</p></div>
+            <div className="work-detail-note"><ShieldCheck size={20}/><div><strong>Work you can count on</strong><span>Practical repairs, clear communication, and attention to the details that matter.</span></div></div>
+            <Link to={user?.role==='admin'?`/gallery?edit=${selectedWork._id}`:primaryAction.to} className="work-modal-action">{user?.role==='admin'?<Pencil size={17}/>:<Calendar size={17}/>} {user?.role==='admin'?'Edit gallery entry':primaryAction.label}</Link>
+          </aside>
+        </div>
+        {(selectedWork.additionalMedia?.length||0)>0&&<footer className="work-thumbnail-rail"><span>More from this job</span><div>{[{mediaType:selectedWork.mediaType,mediaUrl:selectedWork.mediaUrl,thumbnailUrl:selectedWork.thumbnailUrl},...(selectedWork.additionalMedia||[])].map((media,index)=><button key={`${media.mediaUrl}-${index}`} type="button" onClick={()=>setSelectedMediaIndex(index)} className={selectedMediaIndex===index?'active':''} aria-label={`View image ${index+1}`}><img src={media.thumbnailUrl||media.mediaUrl} alt=""/></button>)}</div></footer>}
       </div>
     </div>}
   </div>;

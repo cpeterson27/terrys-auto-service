@@ -140,11 +140,12 @@ const HomePage:React.FC=()=>{
       </section>
 
       <section id="work" className="work-section home-section">
-        <div className="container"><p className="home-section-label">Recent work</p><h2 className="home-section-title">Built on experience</h2>
-          <div className="reference-grid">{referenceWork.map(([src,label])=><div className="reference-card" key={src}><img src={src} alt={label}/><span>{label}</span></div>)}</div>
-          {items.length>0&&<div className="live-work-grid">{items.slice(0,6).map(item=><button type="button" className="live-work-card text-left" key={item._id} onClick={()=>{setSelectedWork(item);setSelectedMediaIndex(0);}}>
-            <div className="live-work-media"><img src={item.thumbnailUrl||item.mediaUrl} alt={item.title}/></div><div className="live-work-body"><small>{getCategory(item.category)}</small><h3>{item.title}</h3></div>
-          </button>)}</div>}
+        <div className="container"><div className="work-editorial-header"><div><p>Inside the shop</p><h2>Work that speaks for itself</h2></div><span>A closer look at the systems we service and the work documented along the way.</span></div>
+          <div className="work-reference-label"><span>Service focus</span><i>01</i></div>
+          <div className="reference-grid">{referenceWork.map(([src,label],index)=><div className="reference-card" key={src}><div><img src={src} alt={label}/><b>{String(index+1).padStart(2,'0')}</b></div><span>{label}</span></div>)}</div>
+          {items.length>0&&<div className="uploaded-work"><div className="work-reference-label"><span>From the shop</span><i>02</i></div><div className="live-work-grid">{items.slice(0,6).map(item=><button type="button" className="live-work-card text-left" key={item._id} onClick={()=>{setSelectedWork(item);setSelectedMediaIndex(0);}}>
+            <div className="live-work-media"><img src={item.thumbnailUrl||item.mediaUrl} alt={item.title}/><span>View job</span></div><div className="live-work-body"><small>{getCategory(item.category)}</small><h3>{item.title}</h3>{item.description&&<p>{item.description}</p>}</div>
+          </button>)}</div></div>}
         </div>
       </section>
 

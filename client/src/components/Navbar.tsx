@@ -45,7 +45,7 @@ const Navbar: React.FC = () => {
               <Link to="/login" className="app-nav-link">Client login</Link>
             </>}
           {user ? <button type="button" onClick={handleLogout} className="app-logout"><LogOut size={17} /> Log out</button>
-            : <Link to="/login" className="app-header-cta">Request service</Link>}
+            : <Link to="/login" className="app-header-cta">Book appointment</Link>}
         </nav>
         <button type="button" className="app-menu-button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-label={isOpen ? 'Close navigation' : 'Open navigation'}>
           {isOpen ? <X size={23} /> : <Menu size={23} />}

@@ -134,6 +134,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .hero-actions a,.hero-actions button { display:inline-flex; align-items:center; justify-content:center; gap:9px; min-height:48px; padding:0 21px; border-radius:3px; font-size:13px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
 .hero-primary { background:var(--red); color:white; box-shadow:0 8px 30px rgba(217,35,46,.22); }
 .hero-secondary { border:1px solid rgba(255,255,255,.5); color:white; }
+.hero-book { border:1px solid rgba(255,255,255,.5); background:rgba(8,10,13,.5); color:white; }
+.hero-book:hover,.hero-secondary:hover { background:rgba(255,255,255,.1); }
 .expect-card { padding:27px; border-radius:7px; background:rgba(255,255,255,.97); color:var(--ink); box-shadow:0 24px 60px rgba(0,0,0,.35); }
 .expect-card>svg { color:var(--red); }
 .expect-card h2 { margin:8px 0; font-size:40px; font-weight:800; line-height:1; text-transform:uppercase; }

@@ -104,7 +104,7 @@ const HomePage:React.FC=()=>{
             <p className="hero-copy">Appointment-based repair and maintenance with straight answers, practical next steps, and work the shop is willing to stand behind.</p>
             <div className="hero-hours"><Clock3 size={25}/><div><strong>Available hours</strong><span>{hoursText}</span></div></div>
             <div className="hero-actions">
-              {user?<Link to={primaryAction.to} className="hero-primary"><PrimaryIcon size={18}/>{primaryAction.label}</Link>:<button type="button" className="hero-primary" onClick={openRequest}><MessageCircle size={18}/>Request service</button>}
+              {user?<Link to={primaryAction.to} className="hero-primary"><PrimaryIcon size={18}/>{primaryAction.label}</Link>:<><button type="button" className="hero-primary" onClick={openRequest}><MessageCircle size={18}/>Request service</button><Link to="/login" className="hero-book"><Calendar size={18}/>Book appointment</Link></>}
               <a href="#work" className="hero-secondary"><Image size={18}/>View work</a>
             </div>
           </div>

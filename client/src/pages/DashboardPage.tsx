@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/authStore';
-import { BarChart3, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, FileText, RotateCw, User, XCircle } from 'lucide-react';
+import { BarChart3, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, FileText, Phone, RotateCw, User, XCircle } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface DashboardStats {
@@ -13,7 +13,7 @@ interface DashboardStats {
 
 interface Booking {
   _id: string;
-  customerId?: { name?: string; email?: string };
+  customerId?: { name?: string; email?: string; phone?: string };
   serviceDate: string;
   serviceTime: string;
   vehicleInfo: string;
@@ -392,6 +392,7 @@ const DashboardPage: React.FC = () => {
   const nextBookings = activeBookings.filter((booking) => getDateKey(booking.serviceDate) >= todayKey).slice(0, 6);
   const customerName = (booking: Booking) => booking.customerId?.name || booking.customerId?.email || 'Customer';
   const customerEmail = (booking: Booking) => booking.customerId?.email || '';
+  const customerPhone = (booking: Booking) => booking.customerId?.phone || '';
   const customerCanBeContacted = (booking: Booking) => {
     const email = customerEmail(booking);
     return email && !email.endsWith('@deleted.local');
@@ -730,9 +731,17 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <p className="font-semibold text-gray-950 break-words">{customerName(selectedBooking)}</p>
                   {customerCanBeContacted(selectedBooking) ? (
-                    <a href={`mailto:${customerEmail(selectedBooking)}`} className="block break-all text-sm text-blue-700 hover:text-blue-800">
-                      {customerEmail(selectedBooking)}
-                    </a>
+                    <div className="mt-1 space-y-1">
+                      <a href={`mailto:${customerEmail(selectedBooking)}`} className="block break-all text-sm text-blue-700 hover:text-blue-800">
+                        {customerEmail(selectedBooking)}
+                      </a>
+                      {customerPhone(selectedBooking) ? (
+                        <a href={`tel:${customerPhone(selectedBooking)}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-blue-800">
+                          <Phone size={14} />
+                          {customerPhone(selectedBooking)}
+                        </a>
+                      ) : <p className="text-sm text-gray-500">No phone number provided</p>}
+                    </div>
                   ) : (
                     <p className="text-sm text-gray-500">Customer profile was deleted. Contact details are no longer available.</p>
                   )}
@@ -758,8 +767,8 @@ const DashboardPage: React.FC = () => {
                 ) : null}
                 {selectedBooking.description && (
                   <>
-                    <p className="mt-4 text-sm font-semibold text-gray-900">Service Request</p>
-                    <p className="mt-1 whitespace-pre-wrap text-gray-700">{selectedBooking.description}</p>
+                    <p className="mt-4 text-sm font-semibold text-gray-900">Customer Message</p>
+                    <p className="mt-2 whitespace-pre-wrap rounded-lg border border-gray-200 bg-white p-3 text-gray-700">{selectedBooking.description}</p>
                   </>
                 )}
               </div>

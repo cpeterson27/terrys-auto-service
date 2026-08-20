@@ -173,6 +173,8 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       phone: phone.trim(),
       role: 'customer',
       emailVerified: false,
+      marketingOptIn: marketingOptIn === true,
+      marketingOptInAt: marketingOptIn === true ? new Date() : null,
     });
 
     try {

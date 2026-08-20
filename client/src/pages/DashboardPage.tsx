@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/authStore';
-import { BarChart3, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, FileText, Phone, RotateCw, User, XCircle } from 'lucide-react';
+import { BarChart3, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, ExternalLink, FileText, Megaphone, Phone, RotateCw, User, XCircle } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface DashboardStats {
@@ -9,6 +9,8 @@ interface DashboardStats {
   pendingBookings: number;
   monthExpenses: number;
   yearExpenses: number;
+  marketingOptIns: number;
+  klaviyoConnected: boolean;
 }
 
 interface Booking {
@@ -152,6 +154,8 @@ const DashboardPage: React.FC = () => {
     pendingBookings: 0,
     monthExpenses: 0,
     yearExpenses: 0,
+    marketingOptIns: 0,
+    klaviyoConnected: false,
   });
   const [allBookings, setAllBookings] = React.useState<Booking[]>([]);
   const [calendarMonth, setCalendarMonth] = React.useState(() => new Date());
@@ -456,6 +460,27 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <section className="admin-panel mb-6 overflow-hidden">
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-700"><Megaphone size={22} /></span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-950">Marketing</h2>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${stats.klaviyoConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  Klaviyo {stats.klaviyoConnected ? 'connected' : 'not connected'}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-gray-600"><strong className="text-gray-950">{stats.marketingOptIns}</strong> customer{stats.marketingOptIns === 1 ? '' : 's'} recorded as opted in for offers and service reminders.</p>
+              <p className="mt-1 text-xs text-gray-500">Campaigns are created and sent from Klaviyo. Customer consent is shown in the Customers directory.</p>
+            </div>
+          </div>
+          <a href="https://www.klaviyo.com/" target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 hover:bg-violet-100">
+            Open Klaviyo <ExternalLink size={16} />
+          </a>
+        </div>
+      </section>
 
       <section className="admin-panel p-6 mb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

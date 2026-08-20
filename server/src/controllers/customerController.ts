@@ -10,7 +10,7 @@ export const listCustomers = async (_req: AuthRequest, res: Response, next: Next
       role: 'customer',
       accountDeleted: { $ne: true },
     })
-      .select('name email phone emailVerified createdAt')
+      .select('name email phone emailVerified marketingOptIn marketingOptInAt createdAt')
       .sort({ name: 1, email: 1 })
       .lean();
 

@@ -37,6 +37,14 @@ const userSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    marketingOptIn: {
+      type: Boolean,
+      default: false,
+    },
+    marketingOptInAt: {
+      type: Date,
+      default: null,
+    },
     emailVerificationToken: {
       type: String,
       default: null,

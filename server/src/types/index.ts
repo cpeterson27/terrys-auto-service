@@ -6,6 +6,8 @@ export interface IUser {
   phone?: string;
   role: 'admin' | 'customer';
   emailVerified?: boolean;
+  marketingOptIn?: boolean;
+  marketingOptInAt?: Date | null;
   emailVerificationToken?: string | null;
   emailVerificationExpires?: Date | null;
   passwordResetToken?: string | null;

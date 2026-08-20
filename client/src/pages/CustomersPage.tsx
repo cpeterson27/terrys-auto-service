@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, Search, Trash2, UserCheck } from 'lucide-react';
+import { Mail, Megaphone, Phone, Search, Trash2, UserCheck } from 'lucide-react';
 import { api, formatCurrency, formatDate } from '../lib/api';
 
 interface Customer {
@@ -8,6 +8,8 @@ interface Customer {
   email: string;
   phone?: string;
   emailVerified?: boolean;
+  marketingOptIn?: boolean;
+  marketingOptInAt?: string;
   createdAt?: string;
   bookingCount: number;
   invoiceCount: number;
@@ -113,6 +115,7 @@ const CustomersPage: React.FC = () => {
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Customer</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Contact</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Marketing</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Activity</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Joined</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
@@ -121,7 +124,7 @@ const CustomersPage: React.FC = () => {
           <tbody>
             {filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                   No customers found.
                 </td>
               </tr>
@@ -155,6 +158,13 @@ const CustomersPage: React.FC = () => {
                   ) : (
                     <p className="text-gray-500">No phone on file</p>
                   )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${customer.marketingOptIn ? 'bg-violet-50 text-violet-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <Megaphone size={13} />
+                    {customer.marketingOptIn ? 'Opted in' : 'Not opted in'}
+                  </span>
+                  {customer.marketingOptInAt ? <p className="mt-1.5 text-xs text-gray-500">Consent: {formatDate(customer.marketingOptInAt)}</p> : null}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   <p>{customer.bookingCount} appointment{customer.bookingCount === 1 ? '' : 's'}</p>

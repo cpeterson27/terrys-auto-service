@@ -17,6 +17,7 @@ interface Booking {
   serviceDate: string;
   serviceTime: string;
   vehicleInfo: string;
+  services?: string[];
   description?: string;
   status: string;
 }
@@ -747,6 +748,14 @@ const DashboardPage: React.FC = () => {
               <div className="rounded-lg bg-gray-50 p-4">
                 <p className="text-sm font-semibold text-gray-900">Vehicle</p>
                 <p className="mt-1 text-gray-700">{selectedBooking.vehicleInfo}</p>
+                {selectedBooking.services?.length ? (
+                  <>
+                    <p className="mt-4 text-sm font-semibold text-gray-900">Requested Services</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedBooking.services.map((service) => <span key={service} className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-800">{service}</span>)}
+                    </div>
+                  </>
+                ) : null}
                 {selectedBooking.description && (
                   <>
                     <p className="mt-4 text-sm font-semibold text-gray-900">Service Request</p>

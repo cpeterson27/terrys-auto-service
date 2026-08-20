@@ -45,6 +45,7 @@ export interface IBooking {
   serviceDate: Date;
   serviceTime: string;
   vehicleInfo: string;
+  services?: string[];
   description: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   createdAt?: Date;

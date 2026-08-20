@@ -117,6 +117,9 @@ export const listBookings = async (req: AuthRequest, res: Response, next: NextFu
 export const createBooking = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { serviceDate, serviceTime, vehicleInfo, description } = req.body;
+    const services = Array.isArray(req.body?.services)
+      ? req.body.services.filter((service: unknown): service is string => typeof service === 'string').map((service: string) => service.trim().slice(0, 80)).filter(Boolean).slice(0, 10)
+      : [];
 
     if (!serviceDate || !serviceTime || !vehicleInfo || !description) {
       return res.status(400).json({ error: 'Date, time, vehicle, and service description are required' });
@@ -153,6 +156,7 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
       serviceDate: date,
       serviceTime,
       vehicleInfo,
+      services,
       description,
     });
 

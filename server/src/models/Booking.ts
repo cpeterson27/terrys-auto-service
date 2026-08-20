@@ -19,6 +19,7 @@ const bookingSchema: Schema = new Schema(
       required: true,
     },
     vehicleInfo: String,
+    services: [{ type: String, trim: true }],
     description: String,
     status: {
       type: String,

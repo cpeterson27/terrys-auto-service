@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, CheckCircle2, Wrench } from 'lucide-react';
 import { api, formatDate } from '../lib/api';
 
 interface Booking {
@@ -7,6 +7,7 @@ interface Booking {
   serviceDate: string;
   serviceTime: string;
   vehicleInfo: string;
+  services?: string[];
   description: string;
   status: string;
 }
@@ -24,6 +25,7 @@ interface DayAvailability {
 }
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
+const requestServices = ['Diagnostics / warning light', 'Brake service', 'Oil change / maintenance', 'Suspension / steering', 'Vehicle inspection', 'General mechanical repair', 'Not sure — describe the issue'];
 
 const getStatusClassName = (status: string) => {
   switch (status) {
@@ -59,7 +61,10 @@ const BookingPage: React.FC = () => {
   const [form, setForm] = React.useState({
     serviceDate: '',
     serviceTime: '',
-    vehicleInfo: '',
+    vehicleYear: '',
+    vehicleMake: '',
+    vehicleModel: '',
+    services: [] as string[],
     description: '',
   });
   const [message, setMessage] = React.useState('');
@@ -129,8 +134,14 @@ const BookingPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await api.post('/bookings', form);
-      setForm({ serviceDate: '', serviceTime: '', vehicleInfo: '', description: '' });
+      await api.post('/bookings', {
+        serviceDate: form.serviceDate,
+        serviceTime: form.serviceTime,
+        vehicleInfo: [form.vehicleYear, form.vehicleMake, form.vehicleModel].filter(Boolean).join(' '),
+        services: form.services,
+        description: form.description,
+      });
+      setForm({ serviceDate: '', serviceTime: '', vehicleYear: '', vehicleMake: '', vehicleModel: '', services: [], description: '' });
       setSlots([]);
       setMessage('Appointment request sent. Terry will confirm it soon.');
       await loadBookings();
@@ -140,6 +151,15 @@ const BookingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleService = (service: string) => {
+    setForm((current) => ({
+      ...current,
+      services: current.services.includes(service)
+        ? current.services.filter((item) => item !== service)
+        : [...current.services, service],
+    }));
   };
 
   const cancelAppointment = async () => {
@@ -278,19 +298,47 @@ const BookingPage: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vehicle Information
-              </label>
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-700 mb-2">What service do you need?</legend>
+              <p className="mb-3 text-sm text-gray-500">Select any that apply. If you are unsure, choose “Not sure” and describe the issue below.</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {requestServices.map((service) => {
+                  const selected = form.services.includes(service);
+                  return (
+                    <button
+                      key={service}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggleService(service)}
+                      className={`flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition ${selected ? 'border-red-400 bg-red-50 text-red-900 ring-1 ring-red-200' : 'border-gray-200 bg-white text-gray-800 hover:border-gray-400'}`}
+                    >
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md ${selected ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        {selected ? <CheckCircle2 size={19} /> : <Wrench size={19} />}
+                      </span>
+                      <span className="font-semibold">{service}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-700 mb-2">Vehicle Information</legend>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <input
                 type="text"
-                placeholder="e.g., 2020 Honda Civic"
-                value={form.vehicleInfo}
-                onChange={(e) => setForm({ ...form, vehicleInfo: e.target.value })}
+                placeholder="Year"
+                inputMode="numeric"
+                maxLength={4}
+                value={form.vehicleYear}
+                onChange={(e) => setForm({ ...form, vehicleYear: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
-            </div>
+              <input type="text" placeholder="Make" value={form.vehicleMake} onChange={(e) => setForm({ ...form, vehicleMake: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input type="text" placeholder="Model" value={form.vehicleModel} onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+              </div>
+            </fieldset>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -363,6 +411,7 @@ const BookingPage: React.FC = () => {
                 <div className={appointmentNote ? 'opacity-80' : ''}>
                   <p className="font-semibold">{formatDate(booking.serviceDate)} at {booking.serviceTime}</p>
                   <p className="text-sm text-gray-600">{booking.vehicleInfo}</p>
+                  {booking.services?.length ? <p className="text-sm font-medium text-gray-700">{booking.services.join(', ')}</p> : null}
                   <p className="text-sm text-gray-600">{booking.description}</p>
                 </div>
                 <div className="flex flex-col gap-2 md:items-end">

@@ -2,7 +2,7 @@ import React from 'react';
 import { Archive, ChevronLeft, Mail, MessageCircle, Phone, Search, Send, X } from 'lucide-react';
 import { api, formatDate } from '../lib/api';
 
-interface ContactMessage { _id:string; name:string; email:string; phone?:string; subject:string; message:string; status:'new'|'read'|'archived'; createdAt:string; replies?:Array<{body:string;sentAt:string;sentBy?:string}>; }
+interface ContactMessage { _id:string; name:string; email:string; phone?:string; vehicle?:{year?:string;make?:string;model?:string}; services?:string[]; subject:string; message:string; status:'new'|'read'|'archived'; createdAt:string; replies?:Array<{body:string;sentAt:string;sentBy?:string}>; }
 type Filter='inbox'|'new'|'archived';
 
 const normalizePhone=(phone:string)=>phone.replace(/[^\d+]/g,'');
@@ -24,7 +24,7 @@ const MessagesPage:React.FC=()=>{
 
   const visibleMessages=React.useMemo(()=>messages.filter(item=>{
     const matchesFilter=filter==='inbox'?item.status!=='archived':filter==='new'?item.status==='new':item.status==='archived';
-    const searchable=`${item.name} ${item.email} ${item.phone||''} ${item.subject} ${item.message}`.toLowerCase();
+    const searchable=`${item.name} ${item.email} ${item.phone||''} ${item.subject} ${item.message} ${item.services?.join(' ')||''} ${item.vehicle?.year||''} ${item.vehicle?.make||''} ${item.vehicle?.model||''}`.toLowerCase();
     return matchesFilter&&searchable.includes(query.trim().toLowerCase());
   }),[messages,filter,query]);
   const selected=messages.find(item=>item._id===selectedId)||null;
@@ -63,7 +63,7 @@ const MessagesPage:React.FC=()=>{
             <select value={selected.status} onChange={event=>void updateStatus(selected._id,event.target.value as ContactMessage['status'])} aria-label="Message status"><option value="new">Unread</option><option value="read">Read</option><option value="archived">Archived</option></select>
           </header>
           <div className="message-contact-bar"><a href={`mailto:${selected.email}`}><Mail size={15}/>{selected.email}</a>{selected.phone?<><a href={`tel:${normalizePhone(selected.phone)}`}><Phone size={15}/>{formatPhone(selected.phone)}</a><a href={`sms:${normalizePhone(selected.phone)}`} onClick={event=>confirmText(event,selected)}><MessageCircle size={15}/>Text</a></>:null}</div>
-          <div className="conversation"><article className="conversation-message incoming"><div className="conversation-meta"><span className="message-avatar">{selected.name.charAt(0).toUpperCase()}</span><div><strong>{selected.name}</strong><span>{formatDate(selected.createdAt)}</span></div></div><p>{selected.message}</p></article>
+          <div className="conversation">{((selected.services?.length||0)>0||selected.vehicle?.year||selected.vehicle?.make||selected.vehicle?.model)&&<div className="request-context"><div><span>Vehicle</span><strong>{[selected.vehicle?.year,selected.vehicle?.make,selected.vehicle?.model].filter(Boolean).join(' ')||'Not provided'}</strong></div><div><span>Requested service</span><strong>{selected.services?.length?selected.services.join(', '):'Not selected'}</strong></div></div>}<article className="conversation-message incoming"><div className="conversation-meta"><span className="message-avatar">{selected.name.charAt(0).toUpperCase()}</span><div><strong>{selected.name}</strong><span>{formatDate(selected.createdAt)}</span></div></div><p>{selected.message}</p></article>
             {selected.replies?.map((reply,index)=><article className="conversation-message outgoing" key={`${reply.sentAt}-${index}`}><div className="conversation-meta"><span className="message-avatar owner">T</span><div><strong>Terry's Auto Service</strong><span>{formatDate(reply.sentAt)}</span></div></div><p>{reply.body}</p></article>)}
           </div>
           <footer className="reply-area">{isComposing?<div className="reply-composer"><label htmlFor="message-reply">Reply to {selected.name}</label><textarea id="message-reply" rows={5} autoFocus value={replyBody} onChange={event=>setReplyBody(event.target.value)} placeholder={`Hi ${selected.name},`}/><div><button type="button" className="admin-button-primary" onClick={()=>void sendReply()} disabled={sending||!replyBody.trim()}><Send size={16}/>{sending?'Sending…':'Send email'}</button><button type="button" className="admin-button-secondary" onClick={()=>{setIsComposing(false);setReplyBody('');}} disabled={sending}>Cancel</button></div></div>:<div className="reply-actions">

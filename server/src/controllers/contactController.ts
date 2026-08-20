@@ -17,6 +17,8 @@ const notifyTerry = async (contact: {
   name: string;
   email: string;
   phone?: string;
+  vehicle?: { year?: string; make?: string; model?: string };
+  services?: string[];
   subject: string;
   message: string;
 }) => {
@@ -27,6 +29,8 @@ const notifyTerry = async (contact: {
     name: escapeHtml(contact.name),
     email: escapeHtml(contact.email),
     phone: escapeHtml(contact.phone || 'Not provided'),
+    vehicle: [contact.vehicle?.year, contact.vehicle?.make, contact.vehicle?.model].filter(Boolean).map((value) => escapeHtml(value || '')).join(' ') || 'Not provided',
+    services: contact.services?.length ? contact.services.map(escapeHtml).join(', ') : 'General service request',
     subject: escapeHtml(contact.subject),
     message: escapeHtml(contact.message).replace(/\n/g, '<br>'),
   };
@@ -42,6 +46,8 @@ const notifyTerry = async (contact: {
         <p><strong>From:</strong> ${safe.name}</p>
         <p><strong>Email:</strong> <a href="mailto:${safe.email}">${safe.email}</a></p>
         <p><strong>Phone:</strong> ${safe.phone}</p>
+        <p><strong>Vehicle:</strong> ${safe.vehicle}</p>
+        <p><strong>Requested services:</strong> ${safe.services}</p>
         <p><strong>Subject:</strong> ${safe.subject}</p>
         <div style="padding:16px;background:#f3f4f6;border-radius:6px">${safe.message}</div>
         <p><a href="${dashboardUrl}">Open messages dashboard</a></p>
@@ -52,10 +58,12 @@ const notifyTerry = async (contact: {
   }
 
   if (adminPhone) {
-    const preview = contact.message.replace(/\s+/g, ' ').trim().slice(0, 240);
+    const preview = contact.message.replace(/\s+/g, ' ').trim().slice(0, 160);
+    const vehicle = [contact.vehicle?.year, contact.vehicle?.make, contact.vehicle?.model].filter(Boolean).join(' ');
+    const serviceSummary = contact.services?.length ? contact.services.join(', ') : contact.subject;
     notifications.push(sendSms(
       adminPhone,
-      `New Terry's Auto Service message from ${contact.name}: ${contact.subject}. ${preview}${contact.message.length > 240 ? '…' : ''} Reply: ${contact.phone || contact.email}`
+      `New service request from ${contact.name}. ${vehicle ? `Vehicle: ${vehicle}. ` : ''}Service: ${serviceSummary}. ${preview}${contact.message.length > 160 ? '…' : ''} Reply: ${contact.phone || contact.email}`
     ));
   } else {
     console.warn('⚠️  ADMIN_PHONE or BUSINESS_PHONE not configured. Contact text notification not sent.');
@@ -72,6 +80,15 @@ const notifyTerry = async (contact: {
 export const createContactMessage = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, email, phone, subject, message, company } = req.body;
+    const rawVehicle = req.body?.vehicle;
+    const vehicle = {
+      year: typeof rawVehicle?.year === 'string' ? rawVehicle.year.trim().slice(0, 4) : '',
+      make: typeof rawVehicle?.make === 'string' ? rawVehicle.make.trim().slice(0, 60) : '',
+      model: typeof rawVehicle?.model === 'string' ? rawVehicle.model.trim().slice(0, 60) : '',
+    };
+    const services = Array.isArray(req.body?.services)
+      ? req.body.services.filter((service: unknown): service is string => typeof service === 'string').map((service: string) => service.trim().slice(0, 80)).filter(Boolean).slice(0, 10)
+      : [];
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
     const lastSubmission = recentSubmissions.get(ipAddress) || 0;
 
@@ -87,11 +104,11 @@ export const createContactMessage = async (req: Request, res: Response, next: Ne
       return res.status(400).json({ error: 'Name, email, subject, and message are required' });
     }
 
-    await ContactMessage.create({ name, email, phone, subject, message });
+    await ContactMessage.create({ name, email, phone, vehicle, services, subject, message });
 
     recentSubmissions.set(ipAddress, Date.now());
 
-    await notifyTerry({ name, email, phone, subject, message });
+    await notifyTerry({ name, email, phone, vehicle, services, subject, message });
 
     res.status(201).json({ success: true });
   } catch (error) {

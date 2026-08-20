@@ -4,6 +4,8 @@ interface IContactMessageDocument extends Document {
   name: string;
   email: string;
   phone?: string;
+  vehicle?: { year?: string; make?: string; model?: string };
+  services: string[];
   subject: string;
   message: string;
   status: 'new' | 'read' | 'archived';
@@ -30,6 +32,13 @@ const contactMessageSchema: Schema = new Schema(
       default: '',
       trim: true,
     },
+    vehicle: {
+      _id: false,
+      year: { type: String, default: '', trim: true },
+      make: { type: String, default: '', trim: true },
+      model: { type: String, default: '', trim: true },
+    },
+    services: [{ type: String, trim: true }],
     subject: {
       type: String,
       required: true,

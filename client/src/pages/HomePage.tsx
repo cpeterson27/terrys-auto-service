@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock3, Gauge, Image, LayoutDashboard, MapPin, Medal, MessageCircle, Pencil, ShieldCheck, Wrench, X } from 'lucide-react';
+import { AlertTriangle, Calendar, Car, CheckCircle2, ChevronDown, ClipboardCheck, Clock3, Gauge, Image, LayoutDashboard, MapPin, Medal, MessageCircle, Pencil, Search, ShieldCheck, Wrench, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -23,6 +23,27 @@ const trustPoints=[
   {title:'Straight answers',description:'Clear explanations before work begins, with practical guidance on what needs attention.',icon:ShieldCheck},
   {title:'Practical repairs',description:'Focused service for everyday vehicles, maintenance needs, and repair jobs done with care.',icon:Wrench},
   {title:'Appointment based',description:'Service requests are reviewed before they are added to the schedule.',icon:Clock3},
+];
+const processSteps=[
+  {number:'01',title:'Tell Terry what is going on',description:'Send the vehicle details, symptoms, and the best way to reach you through the service request form.',icon:ClipboardCheck},
+  {number:'02',title:'Terry reviews the request',description:'Your request is reviewed before anything is placed on the schedule so the next step is clear.',icon:Search},
+  {number:'03',title:'Confirm the appointment',description:'Terry follows up directly to discuss the vehicle and confirm an available service time.',icon:Calendar},
+];
+const detailedServices=[
+  {title:'Diagnostics & warning lights',description:'For check-engine lights, drivability concerns, unusual sounds, or a vehicle that simply does not feel right.',icon:Gauge},
+  {title:'Brake service',description:'Inspection and repair for squealing, grinding, vibration, soft pedals, and worn braking components.',icon:ShieldCheck},
+  {title:'Oil changes & maintenance',description:'Routine service that helps protect your engine and keeps everyday wear from becoming a larger problem.',icon:Clock3},
+  {title:'Suspension & steering',description:'Help with pulling, uneven tire wear, looseness, clunks, vibration, and changes in ride quality.',icon:Car},
+  {title:'Vehicle inspections',description:'A practical look at the vehicle when you need help understanding its condition or prioritizing repairs.',icon:ClipboardCheck},
+  {title:'General mechanical repair',description:'Focused repair work for common mechanical issues on everyday passenger vehicles.',icon:Wrench},
+];
+const symptoms=['A warning light is on','Brakes squeal, grind, or vibrate','The vehicle pulls or feels loose','You notice a leak or unusual smell','A new noise started recently','Routine maintenance is overdue'];
+const faqs=[
+  {question:'Do I need an appointment?',answer:'Yes. Terry works by appointment so each request can be reviewed and a suitable service time can be confirmed before you arrive.'},
+  {question:'How do I request service?',answer:'Use the form below and include your vehicle information, what you are noticing, and your contact details. Terry will review the request and follow up directly.'},
+  {question:'Is submitting a request the same as booking?',answer:'No. A website request starts the conversation. The appointment is added to the schedule after Terry reviews the details and confirms the timing with you.'},
+  {question:'What information should I include?',answer:'Include the year, make, and model when possible, along with warning lights, noises, leaks, recent repairs, or anything else that may help explain the concern.'},
+  {question:'What if I am not sure what service I need?',answer:'That is completely fine. Describe what the vehicle is doing in plain language. Terry can review the symptoms and help determine the practical next step.'},
 ];
 const getCategory=(category?:string)=>category?.trim()||'Auto service';
 const formatTime=(value:string)=>{ const [h,m]=value.split(':').map(Number); return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`; };
@@ -94,6 +115,23 @@ const HomePage:React.FC=()=>{
         </div>
       </section>
 
+      <section className="process-section home-content-section">
+        <div className="container"><div className="section-heading"><p>Simple from the start</p><h2>How service works</h2><span>No guessing and no automatic appointment you were not expecting. Every request starts with a direct review.</span></div>
+          <div className="process-grid">{processSteps.map(({number,title,description,icon:Icon})=><article className="process-card" key={number}><div className="process-card-top"><span>{number}</span><Icon size={25}/></div><h3>{title}</h3><p>{description}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section className="service-detail-section home-content-section">
+        <div className="container"><div className="section-heading light"><p>Repair & maintenance</p><h2>Help for the problems drivers actually notice</h2><span>Start with the concern, not the technical name. Terry can review the details and help narrow down what the vehicle needs.</span></div>
+          <div className="service-detail-grid">{detailedServices.map(({title,description,icon:Icon})=><article key={title}><div><Icon size={24}/></div><h3>{title}</h3><p>{description}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section className="symptom-section">
+        <div className="container symptom-layout"><div><p className="section-kicker">Not sure where to start?</p><h2>You do not need to diagnose it yourself</h2><p>Tell Terry what changed, when it started, and what you see, hear, smell, or feel while driving. Those details are useful.</p><a href="#contact">Describe the problem <MessageCircle size={17}/></a></div>
+          <div className="symptom-list">{symptoms.map(symptom=><div key={symptom}><CheckCircle2 size={18}/><span>{symptom}</span></div>)}</div></div>
+      </section>
+
       <section id="work" className="work-section home-section">
         <div className="container"><p className="home-section-label">Recent work</p><h2 className="home-section-title">Built on experience</h2>
           <div className="reference-grid">{referenceWork.map(([src,label])=><div className="reference-card" key={src}><img src={src} alt={label}/><span>{label}</span></div>)}</div>
@@ -101,6 +139,16 @@ const HomePage:React.FC=()=>{
             <div className="live-work-media"><img src={item.thumbnailUrl||item.mediaUrl} alt={item.title}/></div><div className="live-work-body"><small>{getCategory(item.category)}</small><h3>{item.title}</h3></div>
           </button>)}</div>}
         </div>
+      </section>
+
+      <section className="about-section home-content-section">
+        <div className="container about-layout"><div className="about-visual"><img src="/mechanic-working-reference.png" alt="Mechanic working carefully on a vehicle"/><div><AlertTriangle size={24}/><strong>Appointment based</strong><span>Requests are reviewed before they are scheduled.</span></div></div>
+          <div className="about-copy"><p className="section-kicker">A direct approach to auto repair</p><h2>Work with the person reviewing your vehicle</h2><p>Terry's Auto Service is built around straightforward communication and practical repair decisions. Terry reviews the service requests himself, follows up directly, and keeps the focus on what the vehicle needs.</p><p>The appointment-based process gives each request a clear starting point and helps customers understand the next step before their vehicle is added to the schedule.</p><div className="about-values"><span><ShieldCheck size={19}/>Clear explanations</span><span><Wrench size={19}/>Practical repair decisions</span><span><MessageCircle size={19}/>Direct follow-up</span></div></div>
+        </div>
+      </section>
+
+      <section className="faq-section home-content-section">
+        <div className="container faq-layout"><div><p className="section-kicker">Before you request service</p><h2>Common questions</h2><p>Here is what to expect from Terry's appointment-based process.</p></div><div className="faq-list">{faqs.map((faq,index)=><details key={faq.question} open={index===0}><summary>{faq.question}<ChevronDown size={19}/></summary><p>{faq.answer}</p></details>)}</div></div>
       </section>
 
       <section id="contact" className="contact-section home-section">
@@ -119,6 +167,7 @@ const HomePage:React.FC=()=>{
           </form>
         </div>
       </section>
+      <section className="closing-cta"><div className="container"><div><p>Not sure what the vehicle needs?</p><h2>Start with what you are noticing.</h2><span>Terry will review the details and help determine the next practical step.</span></div><a href="#contact"><MessageCircle size={18}/>Request service</a></div></section>
     </main>
 
     {selectedWork&&<div className="work-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="work-title" onMouseDown={event=>{if(event.currentTarget===event.target)setSelectedWork(null);}}>

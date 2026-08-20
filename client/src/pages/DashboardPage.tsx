@@ -460,7 +460,7 @@ const DashboardPage: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold">Online Booking Schedule</h2>
             <p className="text-gray-600 mt-1">Choose the days, start time, end time, and appointment spacing customers can request online.</p>
-            <p className="mt-3 rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800">{scheduleSummary}</p>
+            <p className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800">{scheduleSummary}</p>
             {availabilityMessage && (
               <p className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
                 {availabilityMessage}
@@ -497,7 +497,7 @@ const DashboardPage: React.FC = () => {
                     onClick={() => toggleBookableDay(day.value)}
                     className={`rounded-lg border px-3 py-3 text-left ${
                       enabled
-                        ? 'border-blue-300 bg-blue-50 text-blue-900'
+                        ? 'border-green-300 bg-green-50 text-green-900'
                         : 'border-gray-200 bg-gray-50 text-gray-500'
                     }`}
                   >

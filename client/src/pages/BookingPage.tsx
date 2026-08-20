@@ -138,6 +138,7 @@ const BookingPage: React.FC = () => {
         serviceDate: form.serviceDate,
         serviceTime: form.serviceTime,
         vehicleInfo: [form.vehicleYear, form.vehicleMake, form.vehicleModel].filter(Boolean).join(' '),
+        vehicle: { year: form.vehicleYear, make: form.vehicleMake, model: form.vehicleModel },
         services: form.services,
         description: form.description,
       });

@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { Booking } from '../models/Booking';
+import { ContactMessage } from '../models/ContactMessage';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import {
@@ -120,6 +121,11 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
     const services = Array.isArray(req.body?.services)
       ? req.body.services.filter((service: unknown): service is string => typeof service === 'string').map((service: string) => service.trim().slice(0, 80)).filter(Boolean).slice(0, 10)
       : [];
+    const vehicle = {
+      year: typeof req.body?.vehicle?.year === 'string' ? req.body.vehicle.year.trim().slice(0, 10) : '',
+      make: typeof req.body?.vehicle?.make === 'string' ? req.body.vehicle.make.trim().slice(0, 60) : '',
+      model: typeof req.body?.vehicle?.model === 'string' ? req.body.vehicle.model.trim().slice(0, 60) : '',
+    };
 
     if (!serviceDate || !serviceTime || !vehicleInfo || !description) {
       return res.status(400).json({ error: 'Date, time, vehicle, and service description are required' });
@@ -161,6 +167,23 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
     });
 
     const populatedBooking = await booking.populate('customerId', 'name email phone');
+    const customer = populatedBooking.customerId as any;
+
+    try {
+      await ContactMessage.create({
+        name: customer?.name || 'Customer',
+        email: customer?.email || '',
+        phone: customer?.phone || '',
+        vehicle,
+        services,
+        subject: `Appointment request — ${formatAppointmentDate(date)} at ${serviceTime}`,
+        message: description,
+        status: 'new',
+      });
+    } catch (messageError) {
+      console.error('Could not add appointment request to the message inbox:', messageError);
+    }
+
     res.status(201).json({ booking: populatedBooking });
   } catch (error) {
     next(error);

@@ -397,12 +397,15 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8 rounded-lg bg-gray-950 px-6 py-7 text-white shadow">
-        <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">Terry's Auto Service</p>
-        <h1 className="mt-2 text-4xl font-bold">Welcome back, {adminFirstName}</h1>
-        <p className="mt-2 text-gray-300">Manage appointments, business records, gallery work, and online booking availability.</p>
-      </div>
+    <main className="admin-page">
+      <header className="admin-page-header">
+        <div>
+          <div className="admin-kicker">Terry's Auto Service</div>
+          <h1 className="admin-title">Good to see you, {adminFirstName}</h1>
+          <p className="admin-subtitle">Here is what is happening across the shop.</p>
+        </div>
+        <p className="rounded border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600">{scheduleSummary}</p>
+      </header>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
@@ -410,49 +413,49 @@ const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="admin-panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600">Total Invoices</p>
-              <p className="text-3xl font-bold">{stats.totalInvoices}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Total invoices</p>
+              <p className="mt-2 text-2xl font-extrabold">{stats.totalInvoices}</p>
             </div>
-            <FileText size={40} className="text-blue-500" />
+            <FileText size={22} className="text-red-600" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="admin-panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600">Revenue</p>
-              <p className="text-3xl font-bold">{formatCurrency(stats.revenue)}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Revenue</p>
+              <p className="mt-2 text-2xl font-extrabold">{formatCurrency(stats.revenue)}</p>
             </div>
-            <DollarSign size={40} className="text-green-500" />
+            <DollarSign size={22} className="text-green-600" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="admin-panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600">Appointments</p>
-              <p className="text-3xl font-bold">{allBookings.length}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Appointments</p>
+              <p className="mt-2 text-2xl font-extrabold">{allBookings.length}</p>
             </div>
-            <Calendar size={40} className="text-purple-500" />
+            <Calendar size={22} className="text-violet-600" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="admin-panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600">Expenses This Month</p>
-              <p className="text-3xl font-bold">{formatCurrency(stats.monthExpenses)}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Expenses this month</p>
+              <p className="mt-2 text-2xl font-extrabold">{formatCurrency(stats.monthExpenses)}</p>
             </div>
-            <BarChart3 size={40} className="text-orange-500" />
+            <BarChart3 size={22} className="text-orange-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
+      <section className="admin-panel p-6 mb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Online Booking Schedule</h2>
@@ -567,9 +570,9 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
+      <section className="admin-panel p-6 mb-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
           <div>
             <h2 className="text-2xl font-bold">Appointment Calendar</h2>
@@ -687,7 +690,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </aside>
         </div>
-      </div>
+      </section>
 
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -983,7 +986,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 };
 

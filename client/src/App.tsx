@@ -32,7 +32,7 @@ function App() {
   return (
     <Router>
       <SeoManager />
-      <div className="min-h-screen bg-gray-50">
+      <div className={user?.role === 'admin' ? 'min-h-screen admin-app' : 'min-h-screen'}>
         <Navbar />
         <Routes>
           {/* Public Routes */}

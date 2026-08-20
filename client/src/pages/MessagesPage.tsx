@@ -1,254 +1,76 @@
 import React from 'react';
-import { Mail, MessageCircle, Phone, Reply, Send, X } from 'lucide-react';
+import { Archive, ChevronLeft, Mail, MessageCircle, Phone, Search, Send, X } from 'lucide-react';
 import { api, formatDate } from '../lib/api';
 
-interface ContactMessage {
-  _id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  subject: string;
-  message: string;
-  status: 'new' | 'read' | 'archived';
-  createdAt: string;
-  replies?: Array<{ body: string; sentAt: string; sentBy?: string }>;
-}
+interface ContactMessage { _id:string; name:string; email:string; phone?:string; subject:string; message:string; status:'new'|'read'|'archived'; createdAt:string; replies?:Array<{body:string;sentAt:string;sentBy?:string}>; }
+type Filter='inbox'|'new'|'archived';
 
-const MessagesPage: React.FC = () => {
-  const [messages, setMessages] = React.useState<ContactMessage[]>([]);
-  const [error, setError] = React.useState('');
-  const [replyingTo, setReplyingTo] = React.useState<string | null>(null);
-  const [replyBody, setReplyBody] = React.useState('');
-  const [sendingReply, setSendingReply] = React.useState(false);
-  const [success, setSuccess] = React.useState('');
+const normalizePhone=(phone:string)=>phone.replace(/[^\d+]/g,'');
+const formatPhone=(phone:string)=>{ const digits=phone.replace(/\D/g,''); const value=digits.length===11&&digits.startsWith('1')?digits.slice(1):digits; return value.length===10?`(${value.slice(0,3)}) ${value.slice(3,6)}-${value.slice(6)}`:phone; };
 
-  const loadMessages = React.useCallback(async () => {
-    try {
-      const response = await api.get('/contact');
-      setMessages(response.data.messages);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not load messages');
-    }
-  }, []);
+const MessagesPage:React.FC=()=>{
+  const [messages,setMessages]=React.useState<ContactMessage[]>([]);
+  const [selectedId,setSelectedId]=React.useState<string|null>(null);
+  const [filter,setFilter]=React.useState<Filter>('inbox');
+  const [query,setQuery]=React.useState('');
+  const [replyBody,setReplyBody]=React.useState('');
+  const [isComposing,setIsComposing]=React.useState(false);
+  const [sending,setSending]=React.useState(false);
+  const [error,setError]=React.useState('');
+  const [success,setSuccess]=React.useState('');
 
-  React.useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
+  const loadMessages=React.useCallback(async()=>{ try { const response=await api.get('/contact'); const next=response.data.messages||[]; setMessages(next); setSelectedId(current=>current&&next.some((item:ContactMessage)=>item._id===current)?current:(next[0]?._id||null)); } catch(error:any){setError(error.response?.data?.error||'Could not load messages');} },[]);
+  React.useEffect(()=>{void loadMessages();},[loadMessages]);
 
-  const updateStatus = async (id: string, status: ContactMessage['status']) => {
-    try {
-      await api.patch(`/contact/${id}`, { status });
-      await loadMessages();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not update message');
-    }
-  };
+  const visibleMessages=React.useMemo(()=>messages.filter(item=>{
+    const matchesFilter=filter==='inbox'?item.status!=='archived':filter==='new'?item.status==='new':item.status==='archived';
+    const searchable=`${item.name} ${item.email} ${item.phone||''} ${item.subject} ${item.message}`.toLowerCase();
+    return matchesFilter&&searchable.includes(query.trim().toLowerCase());
+  }),[messages,filter,query]);
+  const selected=messages.find(item=>item._id===selectedId)||null;
+  const newCount=messages.filter(item=>item.status==='new').length;
 
-  const emailReplyUrl = (item: ContactMessage) => {
-    const subject = `Re: ${item.subject.replace(/[\r\n]+/g, ' ')}`;
-    const body = `Hi ${item.name},\n\n\n\n--- Original website message ---\n${item.message}`;
-    return `mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
+  const updateStatus=async(id:string,status:ContactMessage['status'])=>{ try { await api.patch(`/contact/${id}`,{status}); setMessages(current=>current.map(item=>item._id===id?{...item,status}:item)); } catch(error:any){setError(error.response?.data?.error||'Could not update message');} };
+  const openMessage=(item:ContactMessage)=>{ setSelectedId(item._id); setIsComposing(false); setReplyBody(''); setSuccess(''); if(item.status==='new')void updateStatus(item._id,'read'); };
+  const sendReply=async()=>{ if(!selected||!replyBody.trim()){setError('Write a reply before sending.');return;} setSending(true);setError('');setSuccess(''); try { await api.post(`/contact/${selected._id}/reply`,{body:replyBody.trim()}); setReplyBody('');setIsComposing(false);setSuccess(`Reply sent to ${selected.name}.`);await loadMessages(); } catch(error:any){setError(error.response?.data?.error||'Could not send the email.');} finally{setSending(false);} };
+  const confirmText=(event:React.MouseEvent<HTMLAnchorElement>,item:ContactMessage)=>{ if(!window.confirm(`Open a text to ${item.name} at ${formatPhone(item.phone||'')}?\n\nThis number was entered by the customer and has not been independently verified.`))event.preventDefault(); };
 
-  const phoneUrl = (phone: string, scheme: 'tel' | 'sms') => {
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
-    return `${scheme}:${normalizedPhone}`;
-  };
+  return <main className="admin-page messages-page">
+    <header className="admin-page-header"><div><div className="admin-kicker">Customer communication</div><h1 className="admin-title">Messages</h1><p className="admin-subtitle">Website questions and service requests in one place.</p></div>
+      <div className="messages-summary"><span><strong>{newCount}</strong> unread</span><span><strong>{messages.length}</strong> total</span></div>
+    </header>
+    {error&&<div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}<button onClick={()=>setError('')} className="float-right" aria-label="Dismiss"><X size={16}/></button></div>}
+    {success&&<div className="mb-4 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}
 
-  const formatPhone = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    const usDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-
-    if (usDigits.length === 10) {
-      return `(${usDigits.slice(0, 3)}) ${usDigits.slice(3, 6)}-${usDigits.slice(6)}`;
-    }
-
-    return phone;
-  };
-
-  const confirmText = (event: React.MouseEvent<HTMLAnchorElement>, item: ContactMessage) => {
-    const confirmed = window.confirm(
-      `Open a text message to ${item.name} at ${formatPhone(item.phone || '')}?\n\nThis number was entered by the customer and has not been independently verified.`
-    );
-
-    if (!confirmed) {
-      event.preventDefault();
-      return;
-    }
-
-    if (item.status === 'new') {
-      void updateStatus(item._id, 'read');
-    }
-  };
-
-  const sendReply = async (item: ContactMessage) => {
-    const body = replyBody.trim();
-    if (!body) {
-      setError('Write a reply before sending.');
-      return;
-    }
-
-    setSendingReply(true);
-    setError('');
-    setSuccess('');
-    try {
-      await api.post(`/contact/${item._id}/reply`, { body });
-      setReplyingTo(null);
-      setReplyBody('');
-      setSuccess(`Email sent to ${item.name} at ${item.email}.`);
-      await loadMessages();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not send the email. Please try again.');
-    } finally {
-      setSendingReply(false);
-    }
-  };
-
-  return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900">Messages</h1>
-        <p className="text-gray-600 mt-2">Review service questions and appointment requests from the website.</p>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-          {error}
+    <div className={`inbox-shell admin-panel ${selected?'has-selection':''}`}>
+      <aside className="inbox-sidebar">
+        <div className="inbox-toolbar">
+          <div className="inbox-filters" role="tablist" aria-label="Message filters">
+            {([['inbox','Inbox'],['new','Unread'],['archived','Archived']] as const).map(([value,label])=><button key={value} type="button" className={filter===value?'active':''} onClick={()=>setFilter(value)}>{label}{value==='new'&&newCount>0?<span>{newCount}</span>:null}</button>)}
+          </div>
+          <label className="message-search"><Search size={16}/><span className="sr-only">Search messages</span><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search messages"/></label>
         </div>
-      )}
+        <div className="message-list">
+          {visibleMessages.length===0?<div className="empty-inbox"><Mail size={28}/><strong>No messages here</strong><span>New website inquiries will appear in this inbox.</span></div>:visibleMessages.map(item=><button type="button" key={item._id} className={`message-row ${selectedId===item._id?'selected':''} ${item.status==='new'?'unread':''}`} onClick={()=>openMessage(item)}>
+            <span className="message-avatar">{item.name.charAt(0).toUpperCase()}</span><span className="message-preview"><span className="message-row-top"><strong>{item.name}</strong><time>{new Date(item.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</time></span><span className="message-subject">{item.subject}</span><span className="message-snippet">{item.message}</span></span>{item.status==='new'?<span className="unread-dot"/>:null}
+          </button>)}
+        </div>
+      </aside>
 
-      {success && (
-        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-          {success}
-        </div>
-      )}
-
-      {messages.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-600">
-          No messages yet.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {messages.map((item) => (
-            <article key={item._id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Mail size={18} className="text-blue-600" />
-                    <h2 className="text-xl font-bold text-gray-950">{item.subject}</h2>
-                  </div>
-                  <p className="text-gray-600 mt-1">
-                    {item.name} · {item.email}{item.phone ? ` · ${item.phone}` : ''}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">{formatDate(item.createdAt)}</p>
-                </div>
-                <select
-                  value={item.status}
-                  onChange={(e) => updateStatus(item._id, e.target.value as ContactMessage['status'])}
-                  className="border border-gray-300 rounded px-3 py-2 capitalize"
-                >
-                  <option value="new">New</option>
-                  <option value="read">Read</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap">{item.message}</p>
-              {item.replies && item.replies.length > 0 && (
-                <div className="mt-5 space-y-3">
-                  <p className="text-sm font-bold uppercase tracking-wide text-gray-500">Sent replies</p>
-                  {item.replies.map((reply, index) => (
-                    <div key={`${reply.sentAt}-${index}`} className="rounded border border-green-200 bg-green-50 p-4">
-                      <p className="whitespace-pre-wrap text-gray-800">{reply.body}</p>
-                      <p className="mt-2 text-xs text-gray-500">Sent {formatDate(reply.sentAt)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {replyingTo === item._id && (
-                <div className="mt-6 rounded border border-gray-300 bg-gray-50 p-4">
-                  <label htmlFor={`reply-${item._id}`} className="block font-bold text-gray-950">
-                    Email {item.name} at {item.email}
-                  </label>
-                  <textarea
-                    id={`reply-${item._id}`}
-                    value={replyBody}
-                    onChange={(event) => setReplyBody(event.target.value)}
-                    rows={6}
-                    maxLength={5000}
-                    autoFocus
-                    placeholder={`Hi ${item.name},`}
-                    className="mt-3 w-full rounded border border-gray-300 p-3 text-gray-900 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-100"
-                  />
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => sendReply(item)}
-                      disabled={sendingReply || !replyBody.trim()}
-                      className="inline-flex items-center gap-2 rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Send size={18} />
-                      {sendingReply ? 'Sending…' : 'Send email'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setReplyingTo(null); setReplyBody(''); }}
-                      disabled={sendingReply}
-                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-100"
-                    >
-                      <X size={18} />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-200 pt-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReplyingTo(item._id);
-                    setReplyBody(`Hi ${item.name},\n\n`);
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="inline-flex items-center gap-2 rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600"
-                >
-                  <Reply size={18} />
-                  Reply in dashboard
-                </button>
-                <a
-                  href={emailReplyUrl(item)}
-                  className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  <Mail size={18} />
-                  Open email app
-                </a>
-                {item.phone && (
-                  <>
-                    <a
-                      href={phoneUrl(item.phone, 'sms')}
-                      onClick={(event) => confirmText(event, item)}
-                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
-                    >
-                      <MessageCircle size={18} />
-                      Text {formatPhone(item.phone)}
-                    </a>
-                    <a
-                      href={phoneUrl(item.phone, 'tel')}
-                      onClick={() => item.status === 'new' && updateStatus(item._id, 'read')}
-                      className="inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-50"
-                    >
-                      <Phone size={18} />
-                      Call customer
-                    </a>
-                  </>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+      <section className="message-detail">
+        {!selected?<div className="message-placeholder"><Mail size={34}/><h2>Select a message</h2><p>Choose a conversation to read and reply.</p></div>:<>
+          <header className="message-detail-header"><button type="button" className="mobile-back" onClick={()=>setSelectedId(null)} aria-label="Back to messages"><ChevronLeft/></button><div><span className={`message-status status-${selected.status}`}>{selected.status}</span><h2>{selected.subject}</h2><p>From <strong>{selected.name}</strong> · {formatDate(selected.createdAt)}</p></div>
+            <select value={selected.status} onChange={event=>void updateStatus(selected._id,event.target.value as ContactMessage['status'])} aria-label="Message status"><option value="new">Unread</option><option value="read">Read</option><option value="archived">Archived</option></select>
+          </header>
+          <div className="message-contact-bar"><a href={`mailto:${selected.email}`}><Mail size={15}/>{selected.email}</a>{selected.phone?<><a href={`tel:${normalizePhone(selected.phone)}`}><Phone size={15}/>{formatPhone(selected.phone)}</a><a href={`sms:${normalizePhone(selected.phone)}`} onClick={event=>confirmText(event,selected)}><MessageCircle size={15}/>Text</a></>:null}</div>
+          <div className="conversation"><article className="conversation-message incoming"><div className="conversation-meta"><span className="message-avatar">{selected.name.charAt(0).toUpperCase()}</span><div><strong>{selected.name}</strong><span>{formatDate(selected.createdAt)}</span></div></div><p>{selected.message}</p></article>
+            {selected.replies?.map((reply,index)=><article className="conversation-message outgoing" key={`${reply.sentAt}-${index}`}><div className="conversation-meta"><span className="message-avatar owner">T</span><div><strong>Terry's Auto Service</strong><span>{formatDate(reply.sentAt)}</span></div></div><p>{reply.body}</p></article>)}
+          </div>
+          <footer className="reply-area">{isComposing?<div className="reply-composer"><label htmlFor="message-reply">Reply to {selected.name}</label><textarea id="message-reply" rows={5} autoFocus value={replyBody} onChange={event=>setReplyBody(event.target.value)} placeholder={`Hi ${selected.name},`}/><div><button type="button" className="admin-button-primary" onClick={()=>void sendReply()} disabled={sending||!replyBody.trim()}><Send size={16}/>{sending?'Sending…':'Send email'}</button><button type="button" className="admin-button-secondary" onClick={()=>{setIsComposing(false);setReplyBody('');}} disabled={sending}>Cancel</button></div></div>:<div className="reply-actions"><button type="button" className="admin-button-primary" onClick={()=>{setIsComposing(true);setReplyBody(`Hi ${selected.name},\n\n`);}}><Send size={16}/>Reply by email</button>{selected.status!=='archived'?<button type="button" className="admin-button-secondary" onClick={()=>void updateStatus(selected._id,'archived')}><Archive size={16}/>Archive</button>:null}</div>}</footer>
+        </>}
+      </section>
     </div>
-  );
+  </main>;
 };
 
 export default MessagesPage;
